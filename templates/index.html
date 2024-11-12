@@ -1,0 +1,34 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="public/src/htmx-max.js" defer></script>
+    <script src="public/src/hyperscript.js" defer></script>
+    <script src="public/src/sse.js" defer></script>
+    <script src="public/src/qr.bundle.js" defer></script>
+    <link href="public/css/main.css" rel="stylesheet" />
+    <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
+    <title>{% block title %}WhistBook{% endblock %}</title>
+  </head>
+
+  <body>
+    <div
+      class="container max-w-screen-md mx-auto space-y-4 h-screen flex flex-col"
+      id="container"
+    >
+      {% block contained %}
+      <div hx-trigger="load" hx-get="/login" hx-swap="outerHTML"></div>
+      {% endblock %}
+    </div>
+  </body>
+
+  <script>
+    document.body.addEventListener('htmx:responseError', function (e) {
+      response = e.detail.xhr.response;
+      alertEl = document.getElementById('alert');
+      if (alertEl) {
+        alertEl.innerHTML = response;
+      }
+    });
+  </script>
+</html>

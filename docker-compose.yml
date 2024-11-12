@@ -1,0 +1,11 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: surrealdb
+    restart: unless-stopped
+    user: 'root'
+    command: start --user root --pass root rocksdb:/data/database.db
+    ports:
+      - 31313:8000
+    volumes:
+      - ./data:/data

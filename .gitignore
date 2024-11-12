@@ -1,0 +1,5 @@
+/target
+BonkRank/
+node_modules
+.env
+data/database.db

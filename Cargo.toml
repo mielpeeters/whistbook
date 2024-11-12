@@ -1,0 +1,28 @@
+[package]
+name = "whistbook"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aes = "0.8.4"
+aes-gcm = "0.10.3"
+askama = {git = "https://github.com/djc/askama.git", rev = "a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"}
+axum = "0.7.7"
+axum-extra = { version ="0.9.4", features=["cookie", "typed-header"] }
+base64 = "0.22.1"
+env_logger = "0.11.5"
+futures-util = "0.3.31"
+log = "0.4.22"
+mime_guess = "2.0.5"
+rand = "0.8.5"
+rust-embed = { version = "8.5.0", features = ["axum-ex"] }
+serde = { version = "1.0.213", features = ["derive"] }
+serde_json = "1.0.132"
+surrealdb = "2.0.4"
+tokio = {version="1.41", features=["full"]}
+tokio-stream = "0.1.16"
+tower-livereload = "0.9.4"
+reqwest = { version = "0.12.8", features=["json"] }
+tower-http = { version = "0.6.1", features = ["compression-gzip", "trace"] }
+qr2term = "0.3.3"
+urlencoding = "2.1.3"

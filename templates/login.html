@@ -1,0 +1,74 @@
+<div class="flex flex-row items-center max-w-screen-sm self-center h-screen">
+  <div
+    class="h-[25rem] w-80 flex flex-col justify-start items-start gap-1 px-4 py-4 text-neutral-900"
+  >
+    <div style="display: flex; justify-content: center">
+      <form
+        style="width: 40ch"
+        class="flex flex-col justify-start items-stretch w-full"
+      >
+        <h2
+          class="text-2xl leading-[1.9rem] text-neutral-700 font-bold mb-4 border-b-2 border-neutral-900"
+        >
+          Login
+        </h2>
+        <div class="mb-4">
+          <label
+            for="email"
+            class="block text-neutral-700 pl-2"
+            style="width: 100%"
+            >email
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="john.doe@mail.com"
+              class="border-b-2 border-neutral-900 px-2 w-full"
+          /></label>
+        </div>
+        <div class="mb-4">
+          <label
+            for="password"
+            class="block text-neutral-700 pl-2"
+            style="width: 100%"
+            >password
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="••••••••"
+              class="border-b-2 border-neutral-900 px-2 w-full"
+          /></label>
+        </div>
+        <div class="flex flex-row justify-between w-full">
+          <button
+            type="submit"
+            hx-post="/api/credentials"
+            hx-target="#container"
+            hx-swap="innerHTML"
+            class="bg-neutral-900 hover:bg-emerald-700 transition-colors duration-200 text-white font-bold py-1 px-2 rounded-sm"
+          >
+            Login
+          </button>
+          <button
+            type="submit"
+            hx-post="/register"
+            hx-target="#container"
+            hx-swap="innerHTML"
+            class="bg-neutral-900 hover:bg-blue-800 transition-colors duration-200 text-white font-bold py-1 px-2 rounded-sm"
+          >
+            Register
+          </button>
+        </div>
+        <div id="feedback" class="mt-4 w-full">
+          <div id="alert"></div>
+          <div class="htmx-indicator w-full flex justify-center" id="indicator">
+            <div style="width: 11ch">
+              <p class="waiting">Waiting...</p>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

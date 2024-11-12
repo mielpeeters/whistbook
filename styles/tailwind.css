@@ -1,0 +1,36 @@
+@import url("https://fonts.cdnfonts.com/css/jetbrains-mono-2");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.toggled {
+  border-color: red !important;
+  border-width: 2px !important;
+}
+
+.text-input {
+  @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
+  @apply px-2;
+}
+
+.text-input-container {
+  @apply flex flex-col gap-[3px];
+}
+
+.text-input-label {
+  @apply w-52 font-medium text-neutral-800;
+}
+
+.center-content {
+  @apply flex justify-center items-center h-full w-full;
+}
+
+.button {
+  @apply border-neutral-800 border-2 rounded-sm hover:bg-neutral-100 transition-colors text-lg active:border-blue-800 outline-none text-neutral-800;
+  @apply px-2;
+}
+
+.center {
+  @apply flex justify-center items-center
+}

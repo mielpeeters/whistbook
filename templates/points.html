@@ -1,0 +1,30 @@
+<div
+  class="button"
+  hx-get="/form/{{id}}"
+  hx-swap="outerHTML"
+  _="on click set $players to 0"
+>
+  Nieuwe Ronde
+</div>
+<div id="scores" hx-swap-oob="innerHTML">
+  <div class="flex flex-col">
+    <h2 class="font-medium text-lg text-neutral-800">Ronde</h2>
+    <div class="flex justify-between">
+      {% for i in 0..4 %}
+      <div class="flex flex-col items-center">
+        <div>{{players[i]}}</div>
+        <div>{{points[i]}}</div>
+      </div>
+      {% endfor%}
+    </div>
+    <h2 class="font-medium text-lg text-neutral-800">Spel</h2>
+    <div class="flex justify-between">
+      {% for i in 0..4 %}
+      <div class="flex flex-col items-center">
+        <div>{{players[i]}}</div>
+        <div>{{scores[i]}}</div>
+      </div>
+      {% endfor%}
+    </div>
+  </div>
+</div>

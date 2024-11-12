@@ -1,0 +1,328 @@
+use std::time::Duration;
+
+use askama::Template;
+use axum::extract::{Path, State};
+use axum::http::{StatusCode, Uri};
+use axum::response::IntoResponse;
+use axum::routing::{delete, get, post, Router};
+use axum::Form;
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use serde::Deserialize;
+use tower_http::compression::CompressionLayer;
+use tower_http::trace::TraceLayer;
+use tower_livereload::LiveReloadLayer;
+
+use crate::auth::{create_token, verify_token};
+use crate::db::{
+    delete_game_by_id, get_game, get_game_by_id, get_games_with_ids, save_game, set_login,
+    start_game,
+};
+use crate::embed::StaticFile;
+use crate::template::{
+    AlertTemplate, DealFormTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate,
+    LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate,
+};
+use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
+use crate::Db;
+
+pub async fn router(app_state: Db) -> Router {
+    axum::Router::new()
+        .route("/", get(index))
+        .route("/login", get(login))
+        .route("/register", post(register))
+        .route("/api/credentials", post(check_credentials))
+        .route("/form/:game_id", get(deal_form))
+        .route("/games", get(games))
+        .route("/game/:game_id", get(game))
+        .route("/game/:game_id", delete(delete_game))
+        .route("/api/deal/:game_id", post(deal))
+        .route("/new-game", get(new_game_form))
+        .route("/api/new-game", post(new_game))
+        .route("/public/*file", get(static_handler))
+        .layer(TraceLayer::new_for_http())
+        .layer(CompressionLayer::new())
+        .layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
+        .with_state(app_state)
+}
+
+async fn index() -> impl IntoResponse {
+    HtmlTemplate(IndexTemplate {})
+}
+
+async fn static_handler(uri: Uri) -> impl IntoResponse {
+    StaticFile(
+        uri.path()
+            .trim_start_matches("/public")
+            .trim_start_matches('/')
+            .to_owned(),
+    )
+}
+
+#[derive(Deserialize)]
+struct Login {
+    email: String,
+    password: String,
+}
+
+async fn login(jar: CookieJar) -> impl IntoResponse {
+    if let Some(token) = jar.get("token")
+        && let Ok(_) = verify_token(token.value())
+    {
+        main_page().await
+    } else {
+        let login = LoginTemplate {};
+        login.render().unwrap().into_response()
+    }
+}
+
+async fn register(
+    state: State<Db>,
+    jar: CookieJar,
+    login: Form<Login>,
+) -> Result<impl IntoResponse, StatusCode> {
+    set_login(state.0.clone(), &login.0.email, &login.0.password)
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    println!("Login has been set");
+
+    check_credentials(state, jar, login).await
+}
+
+async fn main_page() -> axum::http::Response<axum::body::Body> {
+    MainTemplate {}.render().unwrap().into_response()
+}
+
+async fn check_credentials(
+    State(db): State<Db>,
+    jar: CookieJar,
+    Form(login): Form<Login>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let check = crate::db::check_login(db.clone(), &login.email, &login.password)
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    if check {
+        let token = create_token(login.email).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let cookie = Cookie::build(("token", token))
+            .path("/")
+            .same_site(SameSite::Strict)
+            .http_only(true);
+
+        let main = main_page().await;
+        return Ok((jar.add(cookie), main));
+    }
+
+    Ok((
+        jar,
+        AlertTemplate {
+            code: StatusCode::UNAUTHORIZED,
+            alert: "Wrong Credentials".into(),
+        }
+        .into_response(),
+    ))
+}
+
+async fn deal(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+    body: String,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        println!("{body}");
+
+        let body = urlencoding::decode(&body).unwrap().into_owned();
+        let parts = body.split('&').map(|part| {
+            let mut key_and_value = part.split('=');
+            (key_and_value.next().unwrap(), key_and_value.next().unwrap())
+        });
+
+        let mut team = vec![];
+        let mut bid = Bid::GrandSlam;
+        let mut slagen = 13;
+
+        for (key, value) in parts {
+            match key {
+                "team" => team.push(value.to_string()),
+                "bid" => bid = value.into(),
+                "slagen" => slagen = value.parse().unwrap(),
+                _ => unreachable!(),
+            }
+        }
+
+        let mut current_game = get_game(db.clone(), token.user.clone(), game_id.clone())
+            .await
+            .unwrap();
+
+        // convert team into a usize or (usize, usize)
+        let mut indexes = team.iter().map(|player| {
+            current_game
+                .players
+                .clone()
+                .into_iter()
+                .position(|p| p.to_lowercase() == player.to_lowercase())
+                .unwrap()
+        });
+
+        let team = match indexes.len() {
+            1 => Team::Solo(indexes.next().unwrap()),
+            2 => Team::Duo(indexes.next().unwrap(), indexes.next().unwrap()),
+            _ => unreachable!(),
+        };
+
+        current_game.add_deal(Deal {
+            team,
+            bid,
+            achieved: slagen,
+        });
+
+        let points = current_game.last_diff().unwrap();
+        let players = current_game.players.clone();
+        let scores = current_game.scores.last().unwrap().clone();
+
+        save_game(
+            db.clone(),
+            token.user.clone(),
+            game_id.clone(),
+            current_game,
+        )
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+        Ok(HtmlTemplate(PointsTemplate {
+            id: game_id,
+            points,
+            players,
+            scores,
+        }))
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+pub async fn new_game_form(jar: CookieJar) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(_) = verify_token(token.value())
+    {
+        Ok(HtmlTemplate(NewGameTemplate {}))
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+#[derive(Deserialize)]
+pub struct NewGameForm {
+    name: String,
+    player1: String,
+    player2: String,
+    player3: String,
+    player4: String,
+}
+
+pub async fn new_game(
+    State(db): State<Db>,
+    jar: CookieJar,
+    Form(form): Form<NewGameForm>,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        // TODO: check if all names are different!
+        let owner = token.user;
+        let players: Players = [form.player1, form.player2, form.player3, form.player4].into();
+
+        let (id, game) = start_game(db, owner, form.name, players)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(HtmlTemplate(GameTemplate {
+            id,
+            game,
+            solobids: solo_bids(),
+            duobids: duo_bids(),
+        }))
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+pub async fn deal_form(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        let game = get_game(db, token.user, game_id.clone()).await.unwrap();
+
+        Ok(HtmlTemplate(DealFormTemplate {
+            id: game_id,
+            game,
+            solobids: solo_bids(),
+            duobids: duo_bids(),
+        }))
+    } else {
+        Err("pretty fucking annoying".to_string())
+    }
+}
+
+pub async fn games(
+    State(db): State<Db>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        let games = get_games_with_ids(db, token.user)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(HtmlTemplate(GamesTemplate { games }))
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+pub async fn game(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        let game = get_game_by_id(db, token.user, game_id.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(HtmlTemplate(GameTemplate {
+            id: game_id,
+            game,
+            solobids: solo_bids(),
+            duobids: duo_bids(),
+        }))
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+pub async fn delete_game(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Some(token) = jar.get("token")
+        && let Ok(token) = verify_token(token.value())
+    {
+        delete_game_by_id(db, token.user, game_id.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(StatusCode::OK)
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}

@@ -1,0 +1,47 @@
+<div class="center-content">
+  <form
+    hx-post="api/new-game"
+    hx-target="#content"
+    hx-swap="innerHTML"
+    class="flex flex-col gap-2 max-width-52"
+  >
+    <label class="text-input-container">
+      <h2 class="text-input-label">Naam van het spel:</h2>
+      <input
+        class="text-input"
+        name="name"
+        type="text"
+        placeholder="Cafe 11/02"
+      />
+    </label>
+    <label class="text-input-container">
+      <h2 class="text-input-label">Speler 1</h2>
+      <input
+        class="text-input"
+        name="player1"
+        type="text"
+        placeholder="Alice"
+      />
+    </label>
+    <label class="text-input-container">
+      <h2 class="text-input-label">Speler 2</h2>
+      <input class="text-input" name="player2" type="text" placeholder="Bob" />
+    </label>
+    <label class="text-input-container">
+      <h2 class="text-input-label">Speler 3</h2>
+      <input
+        class="text-input"
+        name="player3"
+        type="text"
+        placeholder="Charlie"
+      />
+    </label>
+    <label class="text-input-container">
+      <h2 class="text-input-label">Speler 4</h2>
+      <input class="text-input" name="player4" type="text" placeholder="Dave" />
+    </label>
+    <button type="submit" >
+        verzend
+    </button>
+  </form>
+</div>
