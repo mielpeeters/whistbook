@@ -1,31 +1,37 @@
 <div class="center-content">
-    <div class="flex flex-col">
-        <label class="text-input-label mb-8">
-            <h2 class="text-input-label">Zoek</h2>
-            <input type="text" placeholder="search"
-            class="text-input"
-            _="on keyup
+  <div class="flex flex-col w-full h-full">
+    <label class="text-input-label h-24">
+      <h2 class="text-input-label">Zoek</h2>
+      <input
+        type="text"
+        placeholder="search"
+        class="text-input"
+        _="on keyup
             show <div.game/> in #games when its textContent contains my value
-            "></input>
-        </label>
-        <div id="games">
-            {% for game in games %}
-            <div class="game flex" >
-                <div class="flex-1" hx-get="/game/{{game.id}}" hx-target="#content">
-                    {{game.game.name}}
-                </div>
-                <div class="flex-3" hx-get="/game/{{game.id}}" hx-target="#content">
-                    {% for player in game.game.players %}
-                    <div>
-                        {{player}}
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="center" hx-delete="/game/{{game.id}}" hx-swap="outerHTML" hx-target="closest div.game">
-                    <img src="public/assets/trash.svg" ></img>
-                </div>
-            </div>
-            {% endfor %}
+            "
+      />
+    </label>
+    <div id="games">
+      {% for game in games %}
+      <div class="game flex">
+        <div class="flex-1" hx-get="/game/{{game.id}}" hx-target="#content">
+          {{game.game.name}}
         </div>
+        <div class="flex-3" hx-get="/game/{{game.id}}" hx-target="#content">
+          {% for player in game.game.players %}
+          <div>{{player}}</div>
+          {% endfor %}
+        </div>
+        <div
+          class="center"
+          hx-delete="/game/{{game.id}}"
+          hx-swap="outerHTML"
+          hx-target="closest div.game"
+        >
+          <img src="public/assets/trash.svg" />
+        </div>
+      </div>
+      {% endfor %}
     </div>
+  </div>
 </div>

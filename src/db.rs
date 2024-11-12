@@ -1,7 +1,7 @@
-use crate::error::Error;
+use crate::error::{Error, LoginErr};
 use crate::template::IdGame;
 use crate::whist::{Game, Players};
-use crate::Db;
+use crate::{auth, Db};
 
 use surrealdb::engine::any::{self, Any};
 use surrealdb::opt::auth::Root;
@@ -47,12 +47,20 @@ pub async fn check_login(db: Db, email: &str, pw: &str) -> Result<bool, Error> {
         .await
         .map_err(Error::SurrealError)?;
 
-    let res: Option<bool> = res.take(1).map_err(Error::SurrealError)?;
+    let res: Option<bool> = res
+        .take(1)
+        .map_err(|_| Error::LoginErr(LoginErr::WrongCreds))?;
 
     Ok(res.unwrap())
 }
 
 pub async fn set_login(db: Db, email: &str, pw: &str) -> Result<(), Error> {
+    if !auth::check_email(email) {
+        return Err(Error::LoginErr(LoginErr::WrongEmail));
+    }
+
+    auth::check_pw(pw).map_err(Error::LoginErr)?;
+
     let query = r#"
         CREATE login
         SET
@@ -60,11 +68,22 @@ pub async fn set_login(db: Db, email: &str, pw: &str) -> Result<(), Error> {
             pw = crypto::argon2::generate(<string>$pw)
     "#;
 
-    db.query(query)
+    let res = db
+        .query(query)
         .bind(("email", email.to_string()))
         .bind(("pw", pw.to_string()))
         .await
         .map_err(Error::SurrealError)?;
+
+    if let Err(e) = res.check() {
+        if let surrealdb::Error::Db(error) = &e
+            && let surrealdb::error::Db::IndexExists { .. } = error
+        {
+            return Err(Error::LoginAlreadyExists(email.to_string()));
+        } else {
+            return Err(Error::SurrealError(e));
+        };
+    }
 
     Ok(())
 }

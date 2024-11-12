@@ -7,7 +7,7 @@ use base64::Engine as _;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Error, TokenError};
+use crate::error::{Error, LoginErr, TokenError};
 
 const EXPECTED: &str = "This is a signed token for the bonkrank website";
 const TOKEN_HOURS: u64 = 2;
@@ -104,4 +104,66 @@ pub fn check_webhook_secret(secret: &[u8]) -> Result<bool, Error> {
     let key = get_env_key("WEBHOOK_SECRET")?;
 
     Ok(key == secret)
+}
+
+pub fn check_email(email: &str) -> bool {
+    // Split the string by the '@' symbol
+    let parts: Vec<&str> = email.split('@').collect();
+
+    // Ensure there are exactly two parts (local and domain)
+    if parts.len() != 2 {
+        return false;
+    }
+
+    let local_part = parts[0];
+    let domain_part = parts[1];
+
+    // Ensure both local and domain parts are non-empty
+    if local_part.is_empty() || domain_part.is_empty() {
+        return false;
+    }
+
+    // Ensure the domain part contains at least one period ('.')
+    if !domain_part.contains('.') {
+        return false;
+    }
+
+    // Basic check: ensure local part and domain part don't start with special characters
+    if local_part.starts_with('.') || domain_part.starts_with('.') {
+        return false;
+    }
+
+    // Additional basic checks could be added here, like checking for other invalid characters
+    true
+}
+
+pub fn check_pw(password: &str) -> Result<(), LoginErr> {
+    // Check password length
+    if password.len() < 8 {
+        return Err(LoginErr::TooShort);
+    }
+
+    // Check for at least one uppercase letter
+    if !password.chars().any(|c| c.is_uppercase()) {
+        return Err(LoginErr::MissingUppercase);
+    }
+
+    // Check for at least one lowercase letter
+    if !password.chars().any(|c| c.is_lowercase()) {
+        return Err(LoginErr::MissingLowercase);
+    }
+
+    // Check for at least one digit
+    if !password.chars().any(|c| c.is_ascii_digit()) {
+        return Err(LoginErr::MissingDigit);
+    }
+
+    // Check for at least one special character
+    let special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+    if !password.chars().any(|c| special_chars.contains(c)) {
+        return Err(LoginErr::MissingSpecialChar);
+    }
+
+    // If all checks pass
+    Ok(())
 }

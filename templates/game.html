@@ -1,7 +1,9 @@
 <div class="center-content">
-    <div class="flex flex-col">
-        <h2 class="font-medium text-xl text-neutral-800">{{ game.name }}</h2>
-        {% block dealForm %}{% endblock %}
-        <div id="scores"></div>
-    </div>
+  <div class="flex flex-col w-full h-full">
+    <h2 class="font-medium text-xl text-neutral-800 h-24 w-full text-right">
+      {{ game.name }}
+    </h2>
+    {% block dealForm %}{% endblock %}
+    <div id="scores"></div>
+  </div>
 </div>

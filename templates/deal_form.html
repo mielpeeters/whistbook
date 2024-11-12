@@ -1,10 +1,12 @@
-{% extends "game.html" %}
-
-{% block dealForm %}
-<form id="dealform" hx-post="/api/deal/{{id}}" hx-swap="outerHTML" class="w-full flex flex-col pt-4">
-  <div id="step1" class="w-full">
+{% extends "game.html" %} {% block dealForm %}
+<form
+  id="dealform"
+  hx-post="/api/deal/{{id}}"
+  hx-swap="outerHTML"
+  class="w-full flex flex-col pt-4"
+> <div id="step1" class="w-full">
     <h2 class="text-neutral-800 font-medium text-lg mb-2">Wie speelde?</h2>
-    <div class="flex flex-wrap gap-4">
+    <div class="form-grid">
       {% for player in game.players %}
       <div
         _="on click 
@@ -16,7 +18,7 @@
                         decrement $players
                     end
                     "
-        class="w-24 h-16 button"
+        class="h-16 button center"
       >
         <input type="checkbox" name="team" value="{{player}}" hidden />
         {{player}}
@@ -27,17 +29,17 @@
       type="button"
       _="
                 on click 
-                transition #step1's opacity to 0
+                transition #step1's opacity to 0 over 250ms
                 then add .hidden to #step1 
                 then if $players == 1
                     then remove .hidden from #step2solo
-                    then transition #step2solo's opacity to 1
+                    then transition #step2solo's opacity to 1 over 250ms
                 else if $players == 2
                     then remove .hidden from #step2duo
-                    then transition #step2duo's opacity to 1
+                    then transition #step2duo's opacity to 1 over 250ms
                 end
                 "
-      class=""
+      class="button center mt-12 ml-auto"
     >
       Volgende
     </button>
@@ -46,7 +48,7 @@
     <h2 class="text-neutral-800 font-medium text-lg mb-2">
       Wat was het hoogste bod?
     </h2>
-    <div class="flex flex-wrap gap-2" id="solobids">
+    <div class="form-grid" id="solobids">
       {% for bid in solobids %}
       <div
         _="on click 
@@ -54,7 +56,7 @@
                     then remove .toggled from <#solobids>div/>
                     then add .toggled
                     "
-        class="w-32 h-12 button"
+        class="h-16 button center"
       >
         <input type="radio" name="bid" value="{{bid}}" hidden />
         {{bid}}
@@ -65,20 +67,21 @@
       type="button"
       _="
                 on click 
-                transition #step2solo's opacity to 0
+                transition #step2solo's opacity to 0 over 250ms
                 then add .hidden to #step2solo
                 then remove .hidden from #step3
-                then transition #step3's opacity to 1
+                then transition #step3's opacity to 1 over 250ms
                 "
+                class="button center mt-12 ml-auto"
     >
-      Volgende
+      volgende
     </button>
   </div>
   <div id="step2duo" class="hidden opacity-0 w-full">
     <h2 class="text-neutral-800 font-medium text-lg mb-2">
       Wat was het hoogste bod?
     </h2>
-    <div class="flex flex-wrap gap-2" id="duobids">
+    <div class="form-grid" id="duobids">
       {% for bid in duobids %}
       <div
         _="on click 
@@ -86,7 +89,7 @@
                     then remove .toggled from <#duobids>div/>
                     then add .toggled
                     "
-        class="w-32 h-12 button"
+        class="h-16 button center"
       >
         <input type="radio" name="bid" value="{{bid}}" hidden />
         {{bid}}
@@ -97,29 +100,34 @@
       type="button"
       _="
                 on click 
-                transition #step2duo's opacity to 0
+                transition #step2duo's opacity to 0 over 250ms
                 then add .hidden to #step2duo
                 then remove .hidden from #step3
-                then transition #step3's opacity to 1
+                then transition #step3's opacity to 1 over 250ms
                 "
+                class="button center mt-12"
     >
       Volgende
     </button>
   </div>
   <div id="step3" class="hidden opacity-0 w-full">
-    <div class="flex flex-col gap-4">
-      <label class="flex flex-col max-w-52">
-        <h2 class="text-neutral-800 font-medium text-lg">Aantal slagen?</h2>
-        <input
-          type="number"
-          min="0"
-          max="13"
-          name="slagen"
-          class="max-w-16 text-input"
-        />
-      </label>
-      <button type="submit" class="max-w-52">Submit</button>
+    <h2 class="text-neutral-800 font-medium text-lg">Aantal slagen?</h2>
+    <div class="form-grid-small">
+      {% for i in 0..14 %}
+      <div
+        _="on click 
+                        toggle @checked on first <input/> in me 
+                        then remove .toggled from <#duobids>div/>
+                        then add .toggled
+                        "
+        class="h-16 button center"
+      >
+        <input type="checkbox" name="slagen" value="{{i}}" hidden/>
+        {{i}}
+      </div>
+      {% endfor %}
     </div>
+    <button type="submit" class="max-w-52 button center mt-12 ml-auto">opslaan</button>
   </div>
 </form>
 {% endblock %}

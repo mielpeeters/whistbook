@@ -18,6 +18,7 @@ use crate::db::{
     start_game,
 };
 use crate::embed::StaticFile;
+use crate::error::Error;
 use crate::template::{
     AlertTemplate, DealFormTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate,
     LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate,
@@ -79,12 +80,17 @@ async fn register(
     state: State<Db>,
     jar: CookieJar,
     login: Form<Login>,
-) -> Result<impl IntoResponse, StatusCode> {
-    set_login(state.0.clone(), &login.0.email, &login.0.password)
-        .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    let res = set_login(state.0.clone(), &login.0.email, &login.0.password).await;
 
-    println!("Login has been set");
+    if let Err(Error::LoginErr(e)) = res {
+        let message = e.to_help_string();
+
+        return Err(AlertTemplate {
+            code: StatusCode::BAD_REQUEST,
+            alert: message,
+        });
+    }
 
     check_credentials(state, jar, login).await
 }
@@ -97,12 +103,17 @@ async fn check_credentials(
     State(db): State<Db>,
     jar: CookieJar,
     Form(login): Form<Login>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let check = crate::db::check_login(db.clone(), &login.email, &login.password)
-        .await
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
-    if check {
-        let token = create_token(login.email).map_err(|_| StatusCode::UNAUTHORIZED)?;
+) -> Result<impl IntoResponse, AlertTemplate> {
+    let check = crate::db::check_login(db.clone(), &login.email, &login.password).await;
+
+    if let Ok(check) = check
+        && check
+    {
+        let token = create_token(login.email).map_err(|_| AlertTemplate {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            alert: "int serv err".into(),
+        })?;
+
         let cookie = Cookie::build(("token", token))
             .path("/")
             .same_site(SameSite::Strict)
@@ -112,14 +123,10 @@ async fn check_credentials(
         return Ok((jar.add(cookie), main));
     }
 
-    Ok((
-        jar,
-        AlertTemplate {
-            code: StatusCode::UNAUTHORIZED,
-            alert: "Wrong Credentials".into(),
-        }
-        .into_response(),
-    ))
+    Err(AlertTemplate {
+        code: StatusCode::UNAUTHORIZED,
+        alert: "Foute gegevens".into(),
+    })
 }
 
 async fn deal(
@@ -131,8 +138,6 @@ async fn deal(
     if let Some(token) = jar.get("token")
         && let Ok(token) = verify_token(token.value())
     {
-        println!("{body}");
-
         let body = urlencoding::decode(&body).unwrap().into_owned();
         let parts = body.split('&').map(|part| {
             let mut key_and_value = part.split('=');
