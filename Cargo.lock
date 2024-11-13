@@ -4673,6 +4673,7 @@ dependencies = [
  "base64 0.22.1",
  "env_logger",
  "futures-util",
+ "http",
  "log",
  "mime_guess",
  "qr2term",

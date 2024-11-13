@@ -8,9 +8,10 @@ use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
-use tower_governor::GovernorLayer;
+use tower_governor::key_extractor::KeyExtractor;
+use tower_governor::{GovernorError, GovernorLayer};
 use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
@@ -29,11 +30,31 @@ use crate::template::{
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+struct RateLimitToken;
+
+impl KeyExtractor for RateLimitToken {
+    type Key = String;
+
+    fn extract<B>(&self, req: &http::request::Request<B>) -> Result<Self::Key, GovernorError> {
+        req.headers()
+            .get("x-forwarded-for")
+            .and_then(|token| token.to_str().ok())
+            .map(|token| token.trim().to_owned())
+            .ok_or(GovernorError::Other {
+                code: StatusCode::UNAUTHORIZED,
+                msg: Some("You don't have permission to access".to_string()),
+                headers: None,
+            })
+    }
+}
+
 pub async fn router(app_state: Db) -> Router {
     let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(2)
+            .per_second(5)
             .burst_size(5)
+            .key_extractor(RateLimitToken)
             .finish()
             .unwrap(),
     );
@@ -61,15 +82,14 @@ pub async fn router(app_state: Db) -> Router {
         .route("/public/*file", get(static_handler))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
-        .layer(GovernorLayer {
-            config: governor_conf,
-        })
         .with_state(app_state);
 
     if cfg!(debug_assertions) {
         router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
     } else {
-        router
+        router.layer(GovernorLayer {
+            config: governor_conf,
+        })
     }
 }
 
