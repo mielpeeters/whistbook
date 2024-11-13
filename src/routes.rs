@@ -52,8 +52,8 @@ impl KeyExtractor for RateLimitToken {
 pub async fn router(app_state: Db) -> Router {
     let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(5)
-            .burst_size(5)
+            .per_second(3)
+            .burst_size(10)
             .key_extractor(RateLimitToken)
             .finish()
             .unwrap(),
