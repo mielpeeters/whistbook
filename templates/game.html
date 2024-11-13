@@ -1,9 +1,13 @@
+{%- import "scores.html" as scrs -%}
 <div class="center-content">
-  <div class="flex flex-col w-full h-full">
-    <h2 class="font-medium text-xl text-neutral-800 h-24 w-full text-right">
+  <div class="flex flex-col w-full h-full md:h-auto">
+    <h2 class="font-medium text-xl text-neutral-800 h-20 w-full text-right">
       {{ game.name }}
     </h2>
-    {% block dealForm %}{% endblock %}
-    <div id="scores"></div>
+    <div id="gameScores" class="h-20 -mt-8">
+      {% call scrs::scores(game.players, game.last_score().unwrap_or_default(),
+      "") %}
+    </div>
+    {% include "deal_form.html" %}
   </div>
 </div>

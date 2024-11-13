@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use askama::Template;
@@ -8,6 +9,8 @@ use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde::Deserialize;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
@@ -27,7 +30,23 @@ use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
 
 pub async fn router(app_state: Db) -> Router {
-    axum::Router::new()
+    let governor_conf = Arc::new(
+        GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(5)
+            .finish()
+            .unwrap(),
+    );
+
+    let governor_limiter = governor_conf.limiter().clone();
+    let interval = Duration::from_secs(60);
+    // a separate background task to clean up
+    std::thread::spawn(move || loop {
+        std::thread::sleep(interval);
+        governor_limiter.retain_recent();
+    });
+
+    let router = axum::Router::new()
         .route("/", get(index))
         .route("/login", get(login))
         .route("/register", post(register))
@@ -42,8 +61,16 @@ pub async fn router(app_state: Db) -> Router {
         .route("/public/*file", get(static_handler))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
-        .layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
-        .with_state(app_state)
+        .layer(GovernorLayer {
+            config: governor_conf,
+        })
+        .with_state(app_state);
+
+    if cfg!(debug_assertions) {
+        router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
+    } else {
+        router
+    }
 }
 
 async fn index() -> impl IntoResponse {

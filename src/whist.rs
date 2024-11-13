@@ -209,8 +209,19 @@ impl Bid {
 pub struct Points([i16; 4]);
 
 impl Points {
-    fn new() -> Self {
+    const fn new() -> Self {
         Points([0, 0, 0, 0])
+    }
+
+    pub fn positive(&self, i: &usize) -> bool {
+        self[*i] > 0
+    }
+}
+
+impl Default for &Points {
+    fn default() -> Self {
+        const POINTS: Points = Points::new();
+        &POINTS
     }
 }
 

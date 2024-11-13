@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 aes = "0.8.4"
 aes-gcm = "0.10.3"
-askama = {git = "https://github.com/djc/askama.git", rev = "a7e108cd76a2a89dfdf0dfb87b1286ec3a523f08"}
+askama = "0.12.1"
 axum = "0.7.7"
 axum-extra = { version ="0.9.4", features=["cookie", "typed-header"] }
 base64 = "0.22.1"
@@ -26,3 +26,4 @@ reqwest = { version = "0.12.8", features=["json"] }
 tower-http = { version = "0.6.1", features = ["compression-gzip", "trace"] }
 qr2term = "0.3.3"
 urlencoding = "2.1.3"
+tower_governor = "0.4.3"

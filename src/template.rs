@@ -18,7 +18,7 @@ pub struct LoginTemplate {}
 pub struct MainTemplate {}
 
 #[derive(Template)]
-#[template(path = "deal_form.html", block = "dealForm")]
+#[template(path = "deal_form.html")]
 pub struct DealFormTemplate {
     pub id: String,
     pub game: Game,
@@ -27,7 +27,7 @@ pub struct DealFormTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "deal_form.html")]
+#[template(path = "game.html")]
 pub struct GameTemplate {
     pub id: String,
     pub game: Game,
@@ -95,7 +95,7 @@ where
 impl IntoResponse for AlertTemplate {
     fn into_response(self) -> Response {
         match self.render() {
-            Ok(html) => (self.code, html).into_response(),
+            Ok(html) => (self.code, Html(html)).into_response(),
             Err(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to render template",

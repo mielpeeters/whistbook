@@ -1,0 +1,19 @@
+{% macro scores(players, scores, heading) %}
+<div class="flex flex-col">
+  {% if heading.len() > 0 %}
+  <h2 class="font-medium text-lg text-neutral-800">{{heading}}</h2>
+  {% endif %}
+  <div class="grid grid-cols-4 gap-2 four-colors">
+    {% for i in 0..4 %}
+    <div class="flex flex-col items-center">
+      <div>{{players[i]}}</div>
+      {% if scores.positive(i) %}
+      <div>+{{scores[i]}}</div>
+      {% else %}
+      <div>{{scores[i]}}</div>
+      {% endif %}
+    </div>
+    {% endfor%}
+  </div>
+</div>
+{% endmacro %}

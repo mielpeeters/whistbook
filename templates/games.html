@@ -1,34 +1,35 @@
 <div class="center-content">
-  <div class="flex flex-col w-full h-full">
-    <label class="text-input-label h-24 w-full ">
-      <h2 class="text-input-label">Zoek</h2>
+  <div class="flex flex-col w-full h-full md:h-auto">
+    <label class="text-input-label h-20 ml-auto mr-auto md:ml-0">
+      <h2 class="text-input-label">zoek</h2>
       <input
         type="text"
-        placeholder="search"
-        class="text-input w-full"
+        placeholder="spel of speler"
+        class="text-input-small w-full"
         _="on keyup
-            show <div.game/> in #games when its textContent contains my value
+            show <div.game/> in #games when its textContent.toLowerCase() contains my value.toLowerCase()
             "
       />
     </label>
-    <div id="games">
+    <div id="games" class="flex flex-col gap-y-4">
       {% for game in games %}
-      <div class="game flex">
-        <div class="flex-1" hx-get="/game/{{game.id}}" hx-target="#content">
-          {{game.game.name}}
+      <div class="game grid gap-4 grid-cols-9">
+        <div class="col-span-2 " hx-get="/game/{{game.id}}" hx-target="#content">
+          <span class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]">{{game.game.name}}</span>
         </div>
-        <div class="flex-3" hx-get="/game/{{game.id}}" hx-target="#content">
-          {% for player in game.game.players %}
-          <div>{{player}}</div>
-          {% endfor %}
+        <div class="tiny-grid four-colors col-span-6">
+                {% for player in game.game.players %}
+                <div class="border-current text-sm font-[400] rounded-sm border-2 center">{{player}}</div>
+                {% endfor %}
         </div>
         <div
           class="center"
+        >
+          <span class="cursor-pointer hover:-translate-y-[2px] hover:rotate-2 hover:drop-shadow-md transition-all"><img src="public/assets/trash.svg" 
           hx-delete="/game/{{game.id}}"
           hx-swap="outerHTML"
           hx-target="closest div.game"
-        >
-          <img src="public/assets/trash.svg" />
+              /></span>
         </div>
       </div>
       {% endfor %}

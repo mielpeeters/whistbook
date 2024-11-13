@@ -1,21 +1,28 @@
-{% extends "game.html" %} {% block dealForm %}
 <form
   id="dealform"
   hx-post="/api/deal/{{id}}"
   hx-swap="outerHTML"
   class="w-full flex flex-col pt-4"
-> <div id="step1" class="w-full">
+>
+  <div id="step1" class="w-full">
     <h2 class="text-neutral-800 font-medium text-lg mb-2">Wie speelde?</h2>
-    <div class="form-grid">
+    <div class="form-grid four-colors">
       {% for player in game.players %}
       <div
         _="on click 
                     toggle @checked on first <input/> in me 
                     then toggle .toggled on me
-                    if I match .toggled
+                    then if I match .toggled
                         increment $players
                     else
                         decrement $players
+                    end
+                    then if $players == 1 or $players == 2
+                        remove .hidden from #next1
+                        then transition #next1's opacity to 1 over 100ms
+                    else
+                        transition #next1's opacity to 0 over 100ms 
+                        then add .hidden to #next1
                     end
                     "
         class="h-16 button center"
@@ -27,6 +34,7 @@
     </div>
     <button
       type="button"
+      id="next1"
       _="
                 on click 
                 transition #step1's opacity to 0 over 250ms
@@ -39,9 +47,9 @@
                     then transition #step2duo's opacity to 1 over 250ms
                 end
                 "
-      class="button center mt-12 ml-auto"
+      class="button center mt-12 ml-auto hidden opacity-0"
     >
-      Volgende
+      volgende
     </button>
   </div>
   <div id="step2solo" class="hidden opacity-0 w-full">
@@ -52,9 +60,12 @@
       {% for bid in solobids %}
       <div
         _="on click 
-                    toggle @checked on first <input/> in me
-                    then remove .toggled from <#solobids>div/>
+                    remove .toggled from <#solobids>div/>
+                    then remove @checked from <#solobids>div>input/>
                     then add .toggled
+                    then add @checked='true' to first <input/> in me
+                    then remove .hidden from #next20
+                    then transition #next20's opacity to 1 over 100ms
                     "
         class="h-16 button center"
       >
@@ -65,6 +76,7 @@
     </div>
     <button
       type="button"
+      id="next20"
       _="
                 on click 
                 transition #step2solo's opacity to 0 over 250ms
@@ -72,7 +84,7 @@
                 then remove .hidden from #step3
                 then transition #step3's opacity to 1 over 250ms
                 "
-                class="button center mt-12 ml-auto"
+      class="button center mt-12 ml-auto hidden opacity-0"
     >
       volgende
     </button>
@@ -85,9 +97,12 @@
       {% for bid in duobids %}
       <div
         _="on click 
-                    toggle @checked on first <input/> in me
-                    then remove .toggled from <#duobids>div/>
+                    remove .toggled from <#duobids>div/>
+                    then remove @checked from <#duobids>div>input/>
                     then add .toggled
+                    then add @checked='true' to first <input/> in me
+                    then remove .hidden from #next21
+                    then transition #next21's opacity to 1 over 100ms
                     "
         class="h-16 button center"
       >
@@ -98,6 +113,7 @@
     </div>
     <button
       type="button"
+      id="next21"
       _="
                 on click 
                 transition #step2duo's opacity to 0 over 250ms
@@ -105,29 +121,37 @@
                 then remove .hidden from #step3
                 then transition #step3's opacity to 1 over 250ms
                 "
-                class="button center mt-12"
+      class="button center mt-12 ml-auto hidden opacity-0"
     >
-      Volgende
+      volgende
     </button>
   </div>
   <div id="step3" class="hidden opacity-0 w-full">
     <h2 class="text-neutral-800 font-medium text-lg">Aantal slagen?</h2>
-    <div class="form-grid-small">
+    <div class="form-grid-small" id="slages">
       {% for i in 0..14 %}
       <div
         _="on click 
-                        toggle @checked on first <input/> in me 
-                        then remove .toggled from <#duobids>div/>
+                        remove .toggled from <#slages>div/>
+                        then remove @checked from <#slages>div>input/>
                         then add .toggled
+                        then add @checked='true' to first <input/> in me
+                        then remove .hidden from #submit
+                        then transition #submit's opacity to 1 over 100ms
                         "
         class="h-16 button center"
       >
-        <input type="checkbox" name="slagen" value="{{i}}" hidden/>
+        <input type="radio" name="slagen" value="{{i}}" hidden />
         {{i}}
       </div>
       {% endfor %}
     </div>
-    <button type="submit" class="max-w-52 button center mt-12 ml-auto">opslaan</button>
+    <button
+      type="submit"
+      id="submit"
+      class="max-w-52 button center mt-12 ml-auto hidden opacity-0"
+    >
+      opslaan
+    </button>
   </div>
 </form>
-{% endblock %}
