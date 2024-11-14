@@ -4,11 +4,10 @@ use std::time::Duration;
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, Uri};
-use axum::response::{IntoResponse, Redirect};
+use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
-use axum_extra::headers::Header;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -189,7 +188,7 @@ async fn register(
 }
 
 async fn main_page() -> axum::http::Response<axum::body::Body> {
-    MainTemplate {}.render().unwrap().into_response()
+    HtmlTemplate(MainTemplate {}).into_response()
 }
 
 async fn check_credentials(
