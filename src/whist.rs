@@ -29,6 +29,7 @@ pub fn duo_bids() -> Vec<String> {
     DUOBIDS.iter().map(|s| s.to_string()).collect()
 }
 
+#[derive(Debug)]
 pub enum Bid {
     Solo(i16),
     Samen(i16),
@@ -76,21 +77,21 @@ impl Bid {
         match self {
             Bid::Solo(5) => {
                 if 5 <= achieved {
-                    (achieved - 2).max(6)
+                    (achieved - 2).min(6)
                 } else {
                     achieved - 8
                 }
             }
             Bid::Solo(6) => {
                 if 6 <= achieved {
-                    (achieved - 2).max(6)
+                    (achieved - 2).min(6)
                 } else {
                     achieved - 10
                 }
             }
             Bid::Solo(7) => {
                 if 7 <= achieved {
-                    (achieved - 2).max(6)
+                    (achieved - 2).min(6)
                 } else {
                     achieved - 12
                 }
