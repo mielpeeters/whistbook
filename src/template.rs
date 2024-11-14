@@ -73,6 +73,12 @@ pub struct GamesTemplate {
     pub games: Vec<IdGame>,
 }
 
+#[derive(Template)]
+#[template(path = "login_actions.html")]
+pub struct LoginActions {
+    pub exists: bool,
+}
+
 // Turns askama templates into responses that can be handled by server
 pub struct HtmlTemplate<T>(pub T);
 

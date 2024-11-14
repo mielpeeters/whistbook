@@ -1,0 +1,21 @@
+{% if exists %}
+<button
+  type="submit"
+  hx-target="#container"
+  hx-swap="innerHTML"
+  class="fade button !duration-200 !border-current !text-green-800"
+  hx-post="/api/credentials"
+>
+  Login
+</button>
+{% else %}
+<button
+  type="submit"
+  hx-post="/register"
+  hx-target="#container"
+  hx-swap="innerHTML"
+  class="fade button !duration-200 !border-current !text-blue-800"
+>
+  Register
+</button>
+{% endif %}

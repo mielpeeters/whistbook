@@ -207,3 +207,19 @@ pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), 
 
     Ok(())
 }
+
+pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {
+    let query = r#"
+        RETURN count(SELECT * FROM login WHERE email = $email) > 0;
+    "#;
+
+    let mut res = db
+        .query(query)
+        .bind(("email", email))
+        .await
+        .map_err(Error::SurrealError)?;
+
+    let res: Option<bool> = res.take(0).map_err(Error::SurrealError)?;
+
+    Ok(res.unwrap())
+}

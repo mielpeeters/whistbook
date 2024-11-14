@@ -9,6 +9,11 @@
   @apply underline decoration-2;
 }
 
+.login-input {
+  @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
+  @apply px-2 w-full;
+}
+
 .text-input {
   @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
   @apply px-2;
@@ -24,7 +29,7 @@
 }
 
 .text-input-label {
-  @apply w-52 font-medium text-neutral-800;
+  @apply font-medium text-neutral-800;
 }
 
 .center-content {
@@ -33,8 +38,11 @@
 }
 
 .button {
-  @apply border-current border-2 rounded-sm transition-all duration-200 active:border-blue-800 outline-none text-neutral-800;
+  @apply border-current border-2 rounded-sm transition-all duration-150 active:border-blue-800 outline-none text-neutral-800;
   @apply px-2 cursor-pointer;
+  @apply hover:-translate-y-[1px];
+  @apply underline decoration-transparent decoration-2;
+  @apply hover:decoration-current;
 }
 
 .center {
@@ -59,8 +67,8 @@
   @apply grid gap-1;
   grid-template-columns: repeat(2, 1fr);
 }
-  
-.four-colors{
+
+.four-colors {
   > *:nth-child(1) {
     @apply text-red-700;
   }
@@ -76,6 +84,14 @@
   > *:nth-child(4) {
     @apply text-amber-500;
   }
+}
+
+.fade {
+    opacity: 1;
+}
+
+.fade.htmx-added {
+    opacity: 0;
 }
 
 #alert > * {

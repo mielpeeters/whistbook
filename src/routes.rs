@@ -18,14 +18,14 @@ use tower_livereload::LiveReloadLayer;
 
 use crate::auth::{create_token, verify_token};
 use crate::db::{
-    delete_game_by_id, get_game, get_game_by_id, get_games_with_ids, save_game, set_login,
-    start_game,
+    delete_game_by_id, email_exists, get_game, get_game_by_id, get_games_with_ids, save_game,
+    set_login, start_game,
 };
 use crate::embed::StaticFile;
 use crate::error::Error;
 use crate::template::{
     AlertTemplate, DealFormTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate,
-    LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate,
+    LoginActions, LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate,
 };
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
@@ -103,6 +103,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/api/deal/:game_id", post(deal))
         .route("/new-game", get(new_game_form))
         .route("/api/new-game", post(new_game))
+        .route("/api/check-email", post(check_email))
         .route("/public/*file", get(static_handler))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
@@ -366,4 +367,24 @@ pub async fn delete_game(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(StatusCode::OK)
+    })
+}
+
+#[derive(Deserialize)]
+pub struct Email {
+    email: String,
+}
+
+pub async fn check_email(
+    State(db): State<Db>,
+    Form(email): Form<Email>,
+) -> Result<HtmlTemplate<LoginActions>, AlertTemplate> {
+    Ok(HtmlTemplate(LoginActions {
+        exists: email_exists(db, email.email)
+            .await
+            .map_err(|_| AlertTemplate {
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+                alert: "Internal server error".into(),
+            })?,
+    }))
 }
