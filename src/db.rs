@@ -199,13 +199,11 @@ pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), 
         WHERE owner = $owner AND id.id() = $id;
     "#;
 
-    dbg!(
-        db.query(query)
-            .bind(("owner", owner))
-            .bind(("id", id))
-            .await
-    )
-    .map_err(Error::SurrealError)?;
+    db.query(query)
+        .bind(("owner", owner))
+        .bind(("id", id))
+        .await
+        .map_err(Error::SurrealError)?;
 
     Ok(())
 }
