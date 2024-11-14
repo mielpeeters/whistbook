@@ -30,6 +30,30 @@ use crate::template::{
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
 
+macro_rules! auth {
+    ($jar:ident, $token:ident, $block:block) => {
+        #[allow(unused)]
+        if let Some($token) = $jar.get("token")
+            && let Ok($token) = verify_token($token.value())
+        {
+            $block
+        } else {
+            Err(StatusCode::UNAUTHORIZED)
+        }
+    };
+
+    ($jar:ident, $token:ident, $block:block, $else:block) => {
+        #[allow(unused)]
+        if let Some($token) = $jar.get("token")
+            && let Ok($token) = verify_token($token.value())
+        {
+            $block
+        } else {
+            $else
+        }
+    };
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 struct RateLimitToken;
 
@@ -113,14 +137,10 @@ struct Login {
 }
 
 async fn login(jar: CookieJar) -> impl IntoResponse {
-    if let Some(token) = jar.get("token")
-        && let Ok(_) = verify_token(token.value())
-    {
-        main_page().await
-    } else {
+    auth!(jar, token, { main_page().await }, {
         let login = LoginTemplate {};
         login.render().unwrap().into_response()
-    }
+    })
 }
 
 async fn register(
@@ -182,9 +202,7 @@ async fn deal(
     jar: CookieJar,
     body: String,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         let body = urlencoding::decode(&body).unwrap().into_owned();
         let parts = body.split('&').map(|part| {
             let mut key_and_value = part.split('=');
@@ -249,19 +267,11 @@ async fn deal(
             players,
             scores,
         }))
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    })
 }
 
 pub async fn new_game_form(jar: CookieJar) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(_) = verify_token(token.value())
-    {
-        Ok(HtmlTemplate(NewGameTemplate {}))
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    auth!(jar, token, { Ok(HtmlTemplate(NewGameTemplate {})) })
 }
 
 #[derive(Deserialize)]
@@ -278,9 +288,7 @@ pub async fn new_game(
     jar: CookieJar,
     Form(form): Form<NewGameForm>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         // TODO: check if all names are different!
         let owner = token.user;
         let players: Players = [form.player1, form.player2, form.player3, form.player4].into();
@@ -295,9 +303,7 @@ pub async fn new_game(
             solobids: solo_bids(),
             duobids: duo_bids(),
         }))
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    })
 }
 
 pub async fn deal_form(
@@ -305,9 +311,7 @@ pub async fn deal_form(
     Path(game_id): Path<String>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         let game = get_game(db, token.user, game_id.clone()).await.unwrap();
 
         Ok(HtmlTemplate(DealFormTemplate {
@@ -316,26 +320,20 @@ pub async fn deal_form(
             solobids: solo_bids(),
             duobids: duo_bids(),
         }))
-    } else {
-        Err("pretty fucking annoying".to_string())
-    }
+    })
 }
 
 pub async fn games(
     State(db): State<Db>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         let games = get_games_with_ids(db, token.user)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(HtmlTemplate(GamesTemplate { games }))
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    })
 }
 
 pub async fn game(
@@ -343,9 +341,7 @@ pub async fn game(
     Path(game_id): Path<String>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         let game = get_game_by_id(db, token.user, game_id.clone())
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -356,9 +352,7 @@ pub async fn game(
             solobids: solo_bids(),
             duobids: duo_bids(),
         }))
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    })
 }
 
 pub async fn delete_game(
@@ -366,15 +360,10 @@ pub async fn delete_game(
     Path(game_id): Path<String>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
-    if let Some(token) = jar.get("token")
-        && let Ok(token) = verify_token(token.value())
-    {
+    auth!(jar, token, {
         delete_game_by_id(db, token.user, game_id.clone())
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(StatusCode::OK)
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
 }
