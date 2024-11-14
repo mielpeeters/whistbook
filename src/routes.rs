@@ -4,10 +4,11 @@ use std::time::Duration;
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, Uri};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Redirect};
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use axum_extra::headers::Header;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -96,6 +97,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/login", get(login))
         .route("/register", post(register))
         .route("/api/credentials", post(check_credentials))
+        .route("/api/logout", get(logout))
         .route("/form/:game_id", get(deal_form))
         .route("/games", get(games))
         .route("/game/:game_id", get(game))
@@ -142,6 +144,18 @@ async fn login(jar: CookieJar) -> impl IntoResponse {
         let login = LoginTemplate {};
         login.render().unwrap().into_response()
     })
+}
+
+async fn logout(jar: CookieJar) -> impl IntoResponse {
+    (
+        [("HX-Redirect", "/")],
+        jar.remove(
+            Cookie::build("token")
+                .path("/")
+                .same_site(SameSite::Strict)
+                .http_only(true),
+        ),
+    )
 }
 
 async fn register(

@@ -14,7 +14,7 @@
     </h1>
   </a>
   <div id="content" class="mt-8 h-full w-full">
-    <div class="center-content what">
+    <div class="center-content relative">
       <div
         class="flex gap-8 min-h-64 max-w-52 md:max-w-96 flex-wrap justify-center"
       >
@@ -35,6 +35,9 @@
           Nieuw spel
         </button>
       </div>
+      <button hx-get="/api/logout" class="absolute button bottom-2 ml-auto mr-auto !text-neutral-600">
+          logout
+      </button>
     </div>
   </div>
   <div id="alert"></div>

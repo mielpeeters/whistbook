@@ -602,6 +602,10 @@ video {
   bottom: -3rem;
 }
 
+.bottom-2{
+  bottom: 0.5rem;
+}
+
 .col-span-2{
   grid-column: span 2 / span 2;
 }
@@ -897,6 +901,11 @@ video {
 .\!text-green-800{
   --tw-text-opacity: 1 !important;
   color: rgb(22 101 52 / var(--tw-text-opacity)) !important;
+}
+
+.\!text-neutral-600{
+  --tw-text-opacity: 1 !important;
+  color: rgb(82 82 82 / var(--tw-text-opacity)) !important;
 }
 
 .text-blue-800{
