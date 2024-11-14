@@ -11,6 +11,71 @@ use surrealdb::Surreal;
 pub const DB: &str = "whistbook";
 pub const NS: &str = "whistbook";
 
+macro_rules! query {
+    (
+        $query_str:expr,
+        $db:expr
+        $(, $param_name:ident = $param_value:expr )* $(,)?
+    ) => {
+            $db.query($query_str)
+                $(.bind((stringify!($param_name), $param_value)))*
+                .await.map_err(Error::SurrealError)?
+    };
+
+    (
+        $query_str:expr,
+        $db:expr
+        $(, $param:ident )* $(,)?
+    ) => {
+            $db.query($query_str)
+                $(.bind((stringify!($param), $param)))*
+                .await.map_err(Error::SurrealError)?
+    };
+}
+
+macro_rules! take {
+    (
+        $res:ident
+    ) => {
+        $res.take(0).map_err(Error::SurrealError)?
+    };
+    (
+        $res:ident, $no:expr
+    ) => {
+        $res.take($no).map_err(Error::SurrealError)?
+    };
+}
+
+macro_rules! select {
+    (
+        $query_str:expr,
+        $db:expr
+        $(, $param_name:ident = $param_value:expr )* $(,)?
+    ) => {
+        {
+            let mut res = $db.query($query_str)
+                $(.bind((stringify!($param_name), $param_value)))*
+                .await.map_err(Error::SurrealError)?;
+
+            res.take(0).map_err(Error::SurrealError)?
+        }
+    };
+
+    (
+        $query_str:expr,
+        $db:expr
+        $(, $param:ident )* $(,)?
+    ) => {
+        {
+            let mut res = $db.query($query_str)
+                $(.bind((stringify!($param), $param)))*
+                .await.map_err(Error::SurrealError)?;
+
+            res.take(0).map_err(Error::SurrealError)?
+        }
+    };
+}
+
 pub async fn get_db() -> Result<Surreal<Any>, surrealdb::Error> {
     let endpoint = std::env::var("DB_ENDPOINT").unwrap_or("ws://localhost:34343".to_owned());
 
@@ -35,17 +100,15 @@ pub async fn init_db(_db: Db) -> Result<(), Error> {
 }
 
 pub async fn check_login(db: Db, email: &str, pw: &str) -> Result<bool, Error> {
-    let query = r#"
+    let mut res = query!(
+        r#"
         LET $hash = SELECT VALUE pw FROM ONLY login WHERE email = $email LIMIT 1;
         RETURN crypto::argon2::compare($hash, $pw)
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("email", email.to_string()))
-        .bind(("pw", pw.to_string()))
-        .await
-        .map_err(Error::SurrealError)?;
+        "#,
+        db,
+        email = email.to_string(),
+        pw = pw.to_string()
+    );
 
     let res: Option<bool> = res
         .take(1)
@@ -96,79 +159,78 @@ pub async fn start_game<P: Into<Players>>(
 ) -> Result<(String, Game), Error> {
     let game = Game::new(name, players);
 
-    let query = r#"
+    let id: Option<String> = select!(
+        r#"
         SELECT VALUE id.id()
         FROM (CREATE game
-         SET 
-            owner = $owner,
+            SET 
+            owners = [$owner],
             game = $game
-        );
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("owner", owner))
-        .bind(("game", game.clone()))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    let id: Option<String> = res.take(0).map_err(Error::SurrealError)?;
+        );"#,
+        db,
+        owner = owner,
+        game = game.clone()
+    );
 
     Ok((id.unwrap(), game))
 }
 
+pub async fn push_owner(db: Db, owner: String, id: String) -> Result<(), Error> {
+    query!(
+        r#"
+        UPDATE game
+        SET
+            owners = owners.add($owner)
+        WHERE id.id() = $id
+    "#,
+        db,
+        owner,
+        id
+    );
+    Ok(())
+}
+
 pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
-    let query = r#"
-       UPDATE game
-       SET game = $game
-       WHERE owner = $owner AND id.id() = $id;
-    "#;
-
-    let _ = db
-        .query(query)
-        .bind(("owner", owner))
-        .bind(("game", game))
-        .bind(("id", id))
-        .await
-        .map_err(Error::SurrealError)?;
-
+    query!(
+        r#"
+        UPDATE game
+        SET game = $game
+        WHERE $owner IN owners AND id.id() = $id;
+        "#,
+        db,
+        owner,
+        game,
+        id
+    );
     Ok(())
 }
 
 pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
-    let query = r#"
+    let game: Option<Game> = select!(
+        r#"
         SELECT VALUE game
         FROM ONLY type::thing(game, $id)
-        WHERE owner = $owner
+        WHERE $owner IN owners
         LIMIT 1;
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("owner", owner))
-        .bind(("id", id))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    let game: Option<Game> = res.take(0).map_err(Error::SurrealError)?;
+        "#,
+        db,
+        owner,
+        id
+    );
 
     game.ok_or(Error::NoGameError)
 }
 
 pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Error> {
-    let query = r#"
+    let games: Vec<IdGame> = select!(
+        r#"
         SELECT id.id() as id, game
         FROM game
-        WHERE owner = $owner;
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("owner", owner))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    let games: Vec<IdGame> = res.take(0).map_err(Error::SurrealError)?;
+        WHERE $owner IN owners;
+        "#,
+        db,
+        owner
+    );
 
     Ok(games)
 }
@@ -177,7 +239,7 @@ pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, E
     let query = r#"
         SELECT VALUE game
         FROM ONLY type::thing(game, $id)
-        WHERE owner = $owner
+        WHERE $owner IN owners
         LIMIT 1;
     "#;
 
@@ -196,7 +258,7 @@ pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, E
 pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), Error> {
     let query = r#"
         DELETE game
-        WHERE owner = $owner AND id.id() = $id;
+        WHERE $owner IN owners AND id.id() = $id;
     "#;
 
     db.query(query)
