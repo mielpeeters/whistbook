@@ -1,5 +1,4 @@
-{%- import "scores.html" as scrs -%} 
-
+{%- import "scores.html" as scrs -%}
 
 <div id="gameScores" hx-swap-oob="innerHTML">
   {% call scrs::scores(players, scores, "") %}

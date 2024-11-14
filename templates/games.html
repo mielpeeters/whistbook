@@ -14,22 +14,30 @@
     <div id="games" class="flex flex-col gap-y-4">
       {% for game in games %}
       <div class="game grid gap-4 grid-cols-9">
-        <div class="col-span-2 " hx-get="/game/{{game.id}}" hx-target="#content">
-          <span class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]">{{game.game.name}}</span>
+        <div class="col-span-2" hx-get="/game/{{game.id}}" hx-target="#content">
+          <span
+            class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]"
+            >{{game.game.name}}</span
+          >
         </div>
         <div class="tiny-grid four-colors col-span-6">
-                {% for player in game.game.players %}
-                <div class="border-current text-sm font-[400] rounded-sm border-2 center">{{player}}</div>
-                {% endfor %}
+          {% for player in game.game.players %}
+          <div
+            class="border-current text-sm font-[400] rounded-sm border-2 center"
+          >
+            {{player}}
+          </div>
+          {% endfor %}
         </div>
-        <div
-          class="center"
-        >
-          <span class="cursor-pointer hover:-translate-y-[2px] hover:rotate-2 hover:drop-shadow-md transition-all"><img src="public/assets/trash.svg" 
-          hx-delete="/game/{{game.id}}"
-          hx-swap="outerHTML"
-          hx-target="closest div.game"
-              /></span>
+        <div class="center">
+          <span
+            class="cursor-pointer hover:-translate-y-[2px] hover:rotate-2 hover:drop-shadow-md transition-all"
+            ><img
+              src="public/assets/trash.svg"
+              hx-delete="/game/{{game.id}}"
+              hx-swap="outerHTML"
+              hx-target="closest div.game"
+          /></span>
         </div>
       </div>
       {% endfor %}
