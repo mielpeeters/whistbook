@@ -163,6 +163,17 @@ async fn register(
     jar: CookieJar,
     login: Form<Login>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
+    let err = AlertTemplate {
+        code: StatusCode::UNAUTHORIZED,
+        alert: "Foute gegevens".into(),
+    };
+    if email_exists(state.0.clone(), login.0.email.clone())
+        .await
+        .map_err(|_| err.clone())?
+    {
+        return Err(err);
+    }
+
     let res = set_login(state.0.clone(), &login.0.email, &login.0.password).await;
 
     if let Err(Error::LoginErr(e)) = res {

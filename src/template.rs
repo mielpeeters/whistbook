@@ -35,7 +35,7 @@ pub struct GameTemplate {
     pub duobids: Vec<String>,
 }
 
-#[derive(Template)]
+#[derive(Template, Clone)]
 #[template(path = "alert.html")]
 pub struct AlertTemplate {
     pub code: StatusCode,
