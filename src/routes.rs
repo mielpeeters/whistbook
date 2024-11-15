@@ -18,14 +18,14 @@ use tower_livereload::LiveReloadLayer;
 
 use crate::auth::{create_token, verify_token};
 use crate::db::{
-    delete_game_by_id, email_exists, get_game, get_game_by_id, get_games_with_ids, save_game,
+    self, delete_game_by_id, email_exists, get_game, get_game_by_id, get_games_with_ids, save_game,
     set_login, start_game,
 };
 use crate::embed::StaticFile;
 use crate::error::Error;
 use crate::template::{
     AlertTemplate, DealFormTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate,
-    LoginActions, LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate,
+    LoginActions, LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate, Svg,
 };
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
@@ -97,6 +97,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/register", post(register))
         .route("/api/credentials", post(check_credentials))
         .route("/api/logout", get(logout))
+        .route("/api/qr", get(user_qr))
         .route("/form/:game_id", get(deal_form))
         .route("/games", get(games))
         .route("/game/:game_id", get(game))
@@ -411,4 +412,30 @@ pub async fn check_email(
                 alert: "Internal server error".into(),
             })?,
     }))
+}
+
+pub async fn user_qr(
+    State(db): State<Db>,
+    jar: CookieJar,
+) -> Result<HtmlTemplate<Svg>, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            let id = db::get_user_id(db, token.user)
+                .await
+                .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let svg = qrcode_generator::to_svg_to_string(
+                id,
+                qrcode_generator::QrCodeEcc::Low,
+                256,
+                None::<&str>,
+            )
+            .unwrap();
+
+            Ok(HtmlTemplate(Svg { svg }))
+        },
+        { Err(AlertTemplate::unauthorized()) }
+    )
 }

@@ -1,3 +1,5 @@
+<div id="qr" class="hidden">
+</div>
 <div class="w-full h-full flex flex-col">
   <a href="/">
     <h1
@@ -35,9 +37,10 @@
           Nieuw spel
         </button>
       </div>
-      <button hx-get="/api/logout" class="absolute button bottom-2 ml-auto mr-auto !text-neutral-600">
-          logout
-      </button>
+      <div class="absolute bottom-2 ml-auto mr-auto !text-neutral-600 flex justify-center gap-x-4">
+        <button hx-get="/api/qr" hx-swap="outerHTML" class="button" hx-target="#qr">your id</button>
+        <button hx-get="/api/logout" class="button">logout</button>
+      </div>
     </div>
   </div>
   <div id="alert"></div>

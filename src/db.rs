@@ -285,3 +285,17 @@ pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {
 
     Ok(res.unwrap())
 }
+
+pub async fn get_user_id(db: Db, email: String) -> Result<String, Error> {
+    let id: Option<String> = select!(
+        r#"
+        SELECT VALUE <string>id.id()
+        FROM ONLY login
+        WHERE email = $email
+        LIMIT 1;"#,
+        db,
+        email
+    );
+
+    Ok(id.unwrap())
+}

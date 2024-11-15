@@ -1,0 +1,13 @@
+<div id="qr" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full center opacity-0"
+    _="on load 
+            remove .hiden from me 
+            then transition my opacity to 1 over 200ms 
+            end
+        on click 
+            transition my opacity to 0 over 200ms 
+            then set my innerHTML to '' 
+            then add .hidden to me
+    "
+    >
+    {{ svg|safe }}
+</div>

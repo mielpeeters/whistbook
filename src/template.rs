@@ -42,6 +42,21 @@ pub struct AlertTemplate {
     pub alert: String,
 }
 
+impl AlertTemplate {
+    pub fn internal_server_error() -> Self {
+        AlertTemplate {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            alert: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
+        }
+    }
+    pub fn unauthorized() -> Self {
+        AlertTemplate {
+            code: StatusCode::UNAUTHORIZED,
+            alert: StatusCode::UNAUTHORIZED.to_string(),
+        }
+    }
+}
+
 #[derive(Template)]
 #[template(path = "success.html")]
 pub struct SuccessTemplate {
@@ -77,6 +92,12 @@ pub struct GamesTemplate {
 #[template(path = "login_actions.html")]
 pub struct LoginActions {
     pub exists: bool,
+}
+
+#[derive(Template)]
+#[template(path = "svg.html")]
+pub struct Svg {
+    pub svg: String,
 }
 
 // Turns askama templates into responses that can be handled by server
