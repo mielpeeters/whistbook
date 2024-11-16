@@ -302,6 +302,19 @@ impl From<[String; 4]> for Players {
     }
 }
 
+impl From<[&String; 4]> for Players {
+    fn from(value: [&String; 4]) -> Self {
+        Self(
+            value
+                .iter()
+                .map(|&p| p.to_owned())
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        )
+    }
+}
+
 impl From<[&str; 4]> for Players {
     fn from(value: [&str; 4]) -> Self {
         Self(

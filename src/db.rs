@@ -153,69 +153,64 @@ pub async fn set_login(db: Db, email: &str, pw: &str) -> Result<(), Error> {
 
 pub async fn start_game<P: Into<Players>>(
     db: Db,
-    owner: String,
     name: String,
     players: P,
 ) -> Result<(String, Game), Error> {
     let game = Game::new(name, players);
 
     let id: Option<String> = select!(
-        r#"
-        SELECT VALUE id.id()
-        FROM (CREATE game
-            SET 
-            owners = [$owner],
-            game = $game
-        );"#,
+        r#" SELECT VALUE id.id() FROM (CREATE game SET game = $game);"#,
         db,
-        owner = owner,
         game = game.clone()
     );
 
     Ok((id.unwrap(), game))
 }
 
-pub async fn push_owner(db: Db, owner: String, id: String) -> Result<(), Error> {
+pub async fn add_player(
+    db: Db,
+    game_id: String,
+    user_id: String,
+    user_alias: String,
+) -> Result<(), Error> {
     query!(
-        r#"
-        UPDATE game
-        SET
-            owners = owners.add($owner)
-        WHERE id.id() = $id
-    "#,
+        format!(
+            r#" RELATE login:{user_id}->plays->game:{game_id}
+                SET alias = $user_alias;"#
+        ),
         db,
-        owner,
-        id
+        user_alias
     );
     Ok(())
 }
 
 pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
     query!(
-        r#"
-        UPDATE game
-        SET game = $game
-        WHERE $owner IN owners AND id.id() = $id;
-        "#,
+        format!(
+            r#"
+         UPDATE game:{id}
+         SET game = $game
+         WHERE $owner IN <-plays<-login.email;
+         "#
+        ),
         db,
         owner,
         game,
-        id
     );
     Ok(())
 }
 
 pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
     let game: Option<Game> = select!(
-        r#"
-        SELECT VALUE game
-        FROM ONLY type::thing(game, $id)
-        WHERE $owner IN owners
-        LIMIT 1;
-        "#,
+        format!(
+            r#"
+         SELECT VALUE game
+         FROM ONLY game:{id}
+         WHERE $owner IN <-plays<-login.email;
+         "#
+        ),
         db,
         owner,
-        id
     );
 
     game.ok_or(Error::NoGameError)
@@ -226,7 +221,7 @@ pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Er
         r#"
         SELECT id.id() as id, game
         FROM game
-        WHERE $owner IN owners;
+        WHERE $owner IN <-plays<-login.email;
         "#,
         db,
         owner
@@ -236,52 +231,45 @@ pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Er
 }
 
 pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, Error> {
-    let query = r#"
-        SELECT VALUE game
-        FROM ONLY type::thing(game, $id)
-        WHERE $owner IN owners
-        LIMIT 1;
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("owner", owner))
-        .bind(("id", id))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    let game: Option<Game> = res.take(0).map_err(Error::SurrealError)?;
+    let game: Option<Game> = select!(
+        format!(
+            r#"
+            SELECT VALUE game
+            FROM ONLY game:{id}
+            WHERE $owner IN <-plays<-login.email
+            LIMIT 1;
+            "#
+        ),
+        db,
+        owner
+    );
 
     Ok(game.unwrap())
 }
 
 pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), Error> {
-    let query = r#"
-        DELETE game
-        WHERE $owner IN owners AND id.id() = $id;
-    "#;
-
-    db.query(query)
-        .bind(("owner", owner))
-        .bind(("id", id))
-        .await
-        .map_err(Error::SurrealError)?;
+    query!(
+        format!(
+            r#"
+            DELETE game:{id}
+            WHERE $owner IN <-plays<-login.email;
+            "#
+        ),
+        db,
+        owner
+    );
 
     Ok(())
 }
 
 pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {
-    let query = r#"
+    let res: Option<bool> = select!(
+        r#"
         RETURN count(SELECT * FROM login WHERE email = $email) > 0;
-    "#;
-
-    let mut res = db
-        .query(query)
-        .bind(("email", email))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    let res: Option<bool> = res.take(0).map_err(Error::SurrealError)?;
+    "#,
+        db,
+        email
+    );
 
     Ok(res.unwrap())
 }
