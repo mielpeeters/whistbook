@@ -7,7 +7,7 @@
     class="flex flex-col gap-2 max-width-52"
   >
     <label class="text-input-container">
-      <h2 class="text-input-label">Naam van het spel:</h2>
+      <h2 class="text-input-label pointer-events-none">Naam van het spel:</h2>
       <input
         class="text-input"
         name="name"
@@ -24,9 +24,57 @@
         placeholder="your name"
       />
     </label>
-    {% call player_input::player_input("player 2", "player2", "Bob")%}
-    {% call player_input::player_input("player 3", "player3", "Charlie")%}
-    {% call player_input::player_input("player 4", "player4", "Dave")%}
+    {% call player_input::player_input("player 2", "2", "Bob")%}
+    {% call player_input::player_input("player 3", "3", "Charlie")%}
+    {% call player_input::player_input("player 4", "4", "Dave")%}
     <button type="submit" class="button mt-4">verzend</button>
   </form>
 </div>
+<div id="qrContainer" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full h-full center opacity-0 hidden bg-[#fff6] pointer-events-none"
+    _="on scanFor(id)
+            remove .hiden from me 
+            remove .pointer-events-none from me
+            add .h-full to me
+            then transition my opacity to 1 over 200ms 
+            then set #buffer's value to id
+            end
+        on click or close
+            transition my opacity to 0 over 200ms 
+            then set my innerHTML to '' 
+            then add .hidden to me
+            then add .pointer-events-none to me
+            then remove h-full from me
+    "
+    >
+    <video id="qrVideo"></video>
+    <input hidden type="text" id="buffer"></input>
+</div>
+<script>
+const qrContainer = document.querySelector('#qrContainer');
+const buffer = document.querySelector('#buffer');
+const qrScanner = new QrScanner(
+   document.querySelector('#qrVideo'),
+    result => { 
+        const value = result.data;
+        const event = new CustomEvent('scanned', {
+            detail: {
+                scan: value
+            }
+        });
+        const id_input = document.querySelector(buffer.value);
+        id_input.value = value;
+    },
+    {
+        highlightScanRegion: true,
+        highlightCodeOutline: true
+    }
+);
+
+qrContainer.addEventListener('scanFor', e => {
+    qrScanner.start();
+})
+
+qrContainer.addEventListener('click', e => {
+    qrScanner.stop();
+})
+</script>

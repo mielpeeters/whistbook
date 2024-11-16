@@ -4,11 +4,17 @@
     <div class="grid grid-cols-7 gap-2">
         <input
         class="text-input col-span-6"
-        name="{{name}}"
+        name="player{{name}}"
         type="text"
         placeholder="{{placeholder}}"
         />
-        <button class="button" type="button">ID</button>
+        <button tabindex="-1" class="button" type="button"
+            _="on click
+                send scanFor(id:'#id{{name}}') to #qrContainer
+            "
+            >ID
+            <input hidden id="id{{name}}" type="text" name="id{{name}}"/>
+        </button>
     </div>
 </label>
 {% endmacro %}
