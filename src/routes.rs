@@ -56,7 +56,7 @@ macro_rules! auth {
 
 macro_rules! int_err {
     ($res:expr) => {
-        $res.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        $res.map_err(|e| e.into_alert())
     };
 }
 
@@ -312,43 +312,54 @@ pub async fn new_game(
     State(db): State<Db>,
     jar: CookieJar,
     Form(form): Form<NewGameForm>,
-) -> Result<impl IntoResponse, impl IntoResponse> {
-    auth!(jar, token, {
-        // TODO: check if all names are different & non-empty!
-        // TODO: check if the ids are all different!
+) -> Result<impl IntoResponse, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            // TODO: check if all names are different & non-empty!
+            // TODO: check if the ids are all different!
 
-        let owner = token.user;
-        let players: Players = [&form.player1, &form.player2, &form.player3, &form.player4].into();
+            let owner = token.user;
+            let players: Players =
+                [&form.player1, &form.player2, &form.player3, &form.player4].into();
 
-        let (id, game) = start_game(db.clone(), form.name, players)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let (id, game) = start_game(db.clone(), form.name, players)
+                .await
+                .map_err(|e| e.into_alert())?;
 
-        // add all given logins as players of this game
-        // first: me myself and I
-        let my_id = db::get_user_id(db.clone(), owner)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            // add all given logins as players of this game
+            // first: me myself and I
+            let my_id = db::get_user_id(db.clone(), owner)
+                .await
+                .map_err(|e| e.into_alert())?;
 
-        int_err!(db::add_player(db.clone(), id.clone(), my_id, form.player1).await)?;
+            int_err!(db::add_player(db.clone(), id.clone(), my_id, form.player1).await)?;
 
-        if !form.id2.is_empty() {
-            int_err!(db::add_player(db.clone(), id.clone(), form.id2, form.player2).await)?;
+            if !form.id2.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id2, form.player2).await)?;
+            }
+            if !form.id3.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id3, form.player3).await)?;
+            }
+            if !form.id4.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id4, form.player4).await)?;
+            }
+
+            Ok(HtmlTemplate(GameTemplate {
+                id,
+                game,
+                solobids: solo_bids(),
+                duobids: duo_bids(),
+            }))
+        },
+        {
+            Err(AlertTemplate {
+                code: StatusCode::UNAUTHORIZED,
+                alert: "unauthorized".into(),
+            })
         }
-        if !form.id3.is_empty() {
-            int_err!(db::add_player(db.clone(), id.clone(), form.id3, form.player3).await)?;
-        }
-        if !form.id4.is_empty() {
-            int_err!(db::add_player(db.clone(), id.clone(), form.id4, form.player4).await)?;
-        }
-
-        Ok(HtmlTemplate(GameTemplate {
-            id,
-            game,
-            solobids: solo_bids(),
-            duobids: duo_bids(),
-        }))
-    })
+    )
 }
 
 pub async fn deal_form(

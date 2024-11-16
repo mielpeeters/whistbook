@@ -8,9 +8,13 @@
         type="text"
         placeholder="{{placeholder}}"
         />
-        <button tabindex="-1" class="button" type="button"
+        <button tabindex="-1" class="button scanIdButton" type="button"
             _="on click
-                send scanFor(id:'#id{{name}}') to #qrContainer
+                if #id{{name}}'s value == ''
+                  send scanFor(id:'#id{{name}}') to #qrContainer
+                else
+                  remove .scanned from #id{{name}}
+                  set #id{{name}}'s value to ''
             "
             >ID
             <input hidden id="id{{name}}" type="text" name="id{{name}}"/>

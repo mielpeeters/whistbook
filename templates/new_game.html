@@ -1,6 +1,7 @@
 {%- import "player_input.html" as player_input -%}
 <div class="center-content">
   <form
+    hx-boost="true"
     hx-post="api/new-game"
     hx-target="#content"
     hx-swap="innerHTML"
@@ -28,6 +29,7 @@
     {% call player_input::player_input("player 3", "3", "Charlie")%}
     {% call player_input::player_input("player 4", "4", "Dave")%}
     <button type="submit" class="button mt-4">verzend</button>
+    <div id="alert" class="h-8"></div>
   </form>
 </div>
 <div id="qrContainer" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full h-full center opacity-0 hidden bg-[#fff6] pointer-events-none"
@@ -38,9 +40,8 @@
             then transition my opacity to 1 over 200ms 
             then set #buffer's value to id
             end
-        on click or close
+        on click or scanned
             transition my opacity to 0 over 200ms 
-            then set my innerHTML to '' 
             then add .hidden to me
             then add .pointer-events-none to me
             then remove h-full from me
@@ -56,13 +57,15 @@ const qrScanner = new QrScanner(
    document.querySelector('#qrVideo'),
     result => { 
         const value = result.data;
-        const event = new CustomEvent('scanned', {
-            detail: {
-                scan: value
-            }
-        });
+        const event = new Event('scanned');
+
         const id_input = document.querySelector(buffer.value);
         id_input.value = value;
+
+        // for styling
+        id_input.classList.add("scanned");
+
+        qrContainer.dispatchEvent(event);
     },
     {
         highlightScanRegion: true,
@@ -72,6 +75,10 @@ const qrScanner = new QrScanner(
 
 qrContainer.addEventListener('scanFor', e => {
     qrScanner.start();
+})
+
+qrContainer.addEventListener('scanned', e => {
+    qrScanner.stop();
 })
 
 qrContainer.addEventListener('click', e => {

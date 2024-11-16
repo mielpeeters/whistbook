@@ -11,7 +11,7 @@ bundle:
   pnpm webpack
 
 tailwind:
-  pnpm tailwindcss -i styles/tailwind.css -o public/css/main.css
+  pnpm tailwindcss -i styles/tailwind.css -o public/css/main.css --minify
 
 watch:
   cargo watch -w templates -w src -w styles -- just watch-command

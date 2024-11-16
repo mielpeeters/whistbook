@@ -1,14 +1,17 @@
 // INIT login TABLE
-DEFINE TABLE login SCHEMAFULL;
-DEFINE FIELD email ON TABLE login TYPE string ASSERT string::is::email($value);
-DEFINE FIELD pw ON TABLE login TYPE string;
+DEFINE TABLE IF NOT EXISTS login SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS email ON TABLE login TYPE string ASSERT string::is::email($value);
+DEFINE FIELD IF NOT EXISTS pw ON TABLE login TYPE string;
 
-DEFINE INDEX email_index ON TABLE login COLUMNS email UNIQUE;
+DEFINE INDEX IF NOT EXISTS email_index ON TABLE login COLUMNS email UNIQUE;
 
 // INIT game TABLE
-DEFINE TABLE game SCHEMALESS;
-DEFINE FIELD game ON TABLE game TYPE object;
+DEFINE TABLE IF NOT EXISTS game SCHEMALESS;
+DEFINE FIELD IF NOT EXISTS game ON TABLE game TYPE object;
+DEFINE FIELD IF NOT EXISTS game.players ON TABLE game ASSERT game.players.len() == game.players.distinct().len();
+
+// DEFINE INDEX IF NOT EXISTS name_index ON TABLE game COLUMNS game.name UNIQUE;
 
 // INIT plays TABLE
-DEFINE TABLE plays TYPE RELATION IN login OUT game ENFORCED;
-DEFINE FIELD alias ON TABLE plays TYPE string;
+DEFINE TABLE IF NOT EXISTS plays TYPE RELATION IN login OUT game ENFORCED;
+DEFINE FIELD IF NOT EXISTS alias ON TABLE plays TYPE string;

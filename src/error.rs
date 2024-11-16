@@ -1,8 +1,14 @@
 use std::fmt::Display;
 
+use http::StatusCode;
+
+use crate::template::{AlertTemplate, HtmlTemplate};
+
 #[derive(Debug)]
 pub enum Error {
     LoginAlreadyExists(String),
+    GameNameExists(String),
+    PlayerNameEmpty,
     SurrealError(surrealdb::Error),
     EnvVarDecodeError(base64::DecodeError),
     TokenDecodeError,
@@ -53,6 +59,12 @@ impl Display for Error {
             Error::LoginAlreadyExists(s) => {
                 write!(f, "AlreadyExists: account with email {s} already exists")
             }
+            Error::GameNameExists(s) => {
+                write!(f, "Spel met naam \"{s}\" bestaat al")
+            }
+            Error::PlayerNameEmpty => {
+                write!(f, "Minstens 4 namen!")
+            }
             Error::SurrealError(e) => write!(f, "SurrealError: {e}"),
             Error::TokenDecodeError => write!(f, "Token could not be decoded as base64"),
             Error::TokenError(token_error) => write!(f, "Token had an error: {token_error}"),
@@ -82,3 +94,12 @@ impl Display for TokenError {
 }
 
 impl std::error::Error for TokenError {}
+
+impl Error {
+    pub fn into_alert(self) -> AlertTemplate {
+        AlertTemplate {
+            code: StatusCode::BAD_REQUEST,
+            alert: self.to_string(),
+        }
+    }
+}

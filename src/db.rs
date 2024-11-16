@@ -158,13 +158,31 @@ pub async fn start_game<P: Into<Players>>(
 ) -> Result<(String, Game), Error> {
     let game = Game::new(name, players);
 
-    let id: Option<String> = select!(
-        r#" SELECT VALUE id.id() FROM (CREATE game SET game = $game);"#,
+    let res = query!(
+        r#"SELECT VALUE id.id() FROM (CREATE game SET game = $game);"#,
         db,
         game = game.clone()
     );
 
-    Ok((id.unwrap(), game))
+    match res.check() {
+        Err(e) => {
+            if let surrealdb::Error::Db(error) = &e
+                && let surrealdb::error::Db::IndexExists { .. } = error
+            {
+                Err(Error::GameNameExists(game.name))
+            } else if let surrealdb::Error::Api(error) = &e
+                && let surrealdb::error::Api::Query { .. } = error
+            {
+                Err(Error::PlayerNameEmpty)
+            } else {
+                Err(Error::SurrealError(e))
+            }
+        }
+        Ok(mut res) => {
+            let id: Option<String> = take!(res);
+            Ok((id.unwrap(), game))
+        }
+    }
 }
 
 pub async fn add_player(
