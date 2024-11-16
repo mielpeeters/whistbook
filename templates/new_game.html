@@ -1,3 +1,4 @@
+{%- import "player_input.html" as player_input -%}
 <div class="center-content">
   <form
     hx-post="api/new-game"
@@ -20,26 +21,12 @@
         class="text-input"
         name="player1"
         type="text"
-        placeholder="Alice"
+        placeholder="your name"
       />
     </label>
-    <label class="text-input-container">
-      <h2 class="text-input-label">Speler 2</h2>
-      <input class="text-input" name="player2" type="text" placeholder="Bob" />
-    </label>
-    <label class="text-input-container">
-      <h2 class="text-input-label">Speler 3</h2>
-      <input
-        class="text-input"
-        name="player3"
-        type="text"
-        placeholder="Charlie"
-      />
-    </label>
-    <label class="text-input-container">
-      <h2 class="text-input-label">Speler 4</h2>
-      <input class="text-input" name="player4" type="text" placeholder="Dave" />
-    </label>
+    {% call player_input::player_input("player 2", "player2", "Bob")%}
+    {% call player_input::player_input("player 3", "player3", "Charlie")%}
+    {% call player_input::player_input("player 4", "player4", "Dave")%}
     <button type="submit" class="button mt-4">verzend</button>
   </form>
 </div>

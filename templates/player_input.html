@@ -1,0 +1,14 @@
+{% macro player_input(show, name, placeholder) %}
+<label class="text-input-container">
+    <h2 class="text-input-label">{{show}}</h2>
+    <div class="grid grid-cols-7 gap-2">
+        <input
+        class="text-input col-span-6"
+        name="{{name}}"
+        type="text"
+        placeholder="{{placeholder}}"
+        />
+        <button class="button" type="button">ID</button>
+    </div>
+</label>
+{% endmacro %}
