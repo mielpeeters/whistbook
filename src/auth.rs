@@ -143,27 +143,6 @@ pub fn check_pw(password: &str) -> Result<(), LoginErr> {
         return Err(LoginErr::TooShort);
     }
 
-    // Check for at least one uppercase letter
-    if !password.chars().any(|c| c.is_uppercase()) {
-        return Err(LoginErr::MissingUppercase);
-    }
-
-    // Check for at least one lowercase letter
-    if !password.chars().any(|c| c.is_lowercase()) {
-        return Err(LoginErr::MissingLowercase);
-    }
-
-    // Check for at least one digit
-    if !password.chars().any(|c| c.is_ascii_digit()) {
-        return Err(LoginErr::MissingDigit);
-    }
-
-    // Check for at least one special character
-    let special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
-    if !password.chars().any(|c| special_chars.contains(c)) {
-        return Err(LoginErr::MissingSpecialChar);
-    }
-
     // If all checks pass
     Ok(())
 }

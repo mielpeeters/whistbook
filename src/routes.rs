@@ -8,6 +8,8 @@ use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use axum_garde::WithValidation;
+use garde::Validate;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -67,27 +69,15 @@ impl KeyExtractor for RateLimitToken {
     type Key = String;
 
     fn extract<B>(&self, req: &http::request::Request<B>) -> Result<Self::Key, GovernorError> {
-        if cfg!(debug_assertions) {
-            req.headers()
-                .get("connection")
-                .and_then(|token| token.to_str().ok())
-                .map(|token| token.trim().to_owned())
-                .ok_or(GovernorError::Other {
-                    code: StatusCode::UNAUTHORIZED,
-                    msg: Some("You don't have permission to access".to_string()),
-                    headers: None,
-                })
-        } else {
-            req.headers()
-                .get("x-forwarded-for")
-                .and_then(|token| token.to_str().ok())
-                .map(|token| token.trim().to_owned())
-                .ok_or(GovernorError::Other {
-                    code: StatusCode::UNAUTHORIZED,
-                    msg: Some("You don't have permission to access".to_string()),
-                    headers: None,
-                })
-        }
+        req.headers()
+            .get("x-forwarded-for")
+            .and_then(|token| token.to_str().ok())
+            .map(|token| token.trim().to_owned())
+            .ok_or(GovernorError::Other {
+                code: StatusCode::UNAUTHORIZED,
+                msg: Some("You don't have permission to access".to_string()),
+                headers: None,
+            })
     }
 }
 
@@ -117,7 +107,7 @@ pub async fn router(app_state: Db) -> Router {
         governor_limiter.retain_recent();
     });
 
-    let mut router = axum::Router::new()
+    let router = axum::Router::new()
         .route("/", get(index))
         .route("/login", get(login))
         .route("/register", post(register))
@@ -139,10 +129,7 @@ pub async fn router(app_state: Db) -> Router {
 
     if cfg!(debug_assertions) {
         // debug only
-        router = router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)));
-        router.layer(GovernorLayer {
-            config: governor_conf,
-        })
+        router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
     } else {
         // release only
         router.layer(GovernorLayer {
@@ -164,9 +151,11 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
     )
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 struct Login {
+    #[garde(email)]
     email: String,
+    #[garde(skip)]
     password: String,
 }
 
@@ -194,6 +183,13 @@ async fn register(
     jar: CookieJar,
     login: Form<Login>,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
+    if let Err(_e) = login.0.validate() {
+        return Err(AlertTemplate {
+            code: 422.try_into().unwrap(),
+            alert: "Not a valid email...".into(),
+        });
+    }
+
     // use the index on the login table as a check to see if this login already exists!
     let res = set_login(state.0.clone(), &login.0.email, &login.0.password).await;
 
@@ -321,22 +317,30 @@ pub async fn new_game_form(jar: CookieJar) -> Result<impl IntoResponse, impl Int
     auth!(jar, token, { Ok(HtmlTemplate(NewGameTemplate {})) })
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct NewGameForm {
+    #[garde(length(min = 1))]
     name: String,
+    #[garde(length(min = 1))]
     player1: String,
+    #[garde(length(min = 1))]
     player2: String,
+    #[garde(length(min = 1))]
     player3: String,
+    #[garde(length(min = 1))]
     player4: String,
+    #[garde(alphanumeric)]
     id2: String,
+    #[garde(alphanumeric)]
     id3: String,
+    #[garde(alphanumeric)]
     id4: String,
 }
 
 pub async fn new_game(
     State(db): State<Db>,
     jar: CookieJar,
-    Form(form): Form<NewGameForm>,
+    WithValidation(form): WithValidation<Form<NewGameForm>>,
 ) -> Result<impl IntoResponse, AlertTemplate> {
     auth!(
         jar,
@@ -344,13 +348,13 @@ pub async fn new_game(
         {
             // TODO: check if all names are different & non-empty!
             // TODO: check if the ids are all different!
+            let form = form.into_inner();
 
             let owner = token.user;
             let players: Players =
                 [&form.player1, &form.player2, &form.player3, &form.player4].into();
 
-            let (id, game) = start_game(db.clone(), form.name, players)
-                .await
+            let (id, game) = dbg!(start_game(db.clone(), form.name, players).await)
                 .map_err(|e| e.into_alert())?;
 
             // add all given logins as players of this game
@@ -387,17 +391,23 @@ pub async fn new_game(
     )
 }
 
-#[axum::debug_handler]
+#[derive(Deserialize, Validate)]
+pub struct GameId {
+    #[garde(alphanumeric, length(min = 18, max = 22))]
+    id: String,
+}
+
 pub async fn deal_form(
     State(db): State<Db>,
-    Path(game_id): Path<String>,
+    WithValidation(game_id): WithValidation<Path<GameId>>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     auth!(jar, token, {
-        let game = get_game(db, token.user, game_id.clone()).await.unwrap();
+        let game_id = game_id.into_inner();
+        let game = get_game(db, token.user, game_id.id.clone()).await.unwrap();
 
         Ok(HtmlTemplate(DealFormTemplate {
-            id: game_id,
+            id: game_id.id,
             game,
             solobids: solo_bids(),
             duobids: duo_bids(),
@@ -451,8 +461,9 @@ pub async fn delete_game(
     })
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct Email {
+    #[garde(length(min = 5))]
     email: String,
 }
 
@@ -460,6 +471,14 @@ pub async fn check_email(
     State(db): State<Db>,
     Form(email): Form<Email>,
 ) -> Result<HtmlTemplate<LoginActions>, AlertTemplate> {
+    if let Err(report) = email.validate() {
+        let reports = report.into_inner();
+        return Err(AlertTemplate {
+            code: 422.try_into().unwrap(),
+            alert: reports.first().unwrap().1.to_string(),
+        });
+    };
+
     Ok(HtmlTemplate(LoginActions {
         exists: email_exists(db, email.email)
             .await

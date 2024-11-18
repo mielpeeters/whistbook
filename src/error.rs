@@ -2,13 +2,13 @@ use std::fmt::Display;
 
 use http::StatusCode;
 
-use crate::template::{AlertTemplate, HtmlTemplate};
+use crate::template::AlertTemplate;
 
 #[derive(Debug)]
 pub enum Error {
     LoginAlreadyExists(String),
     GameNameExists(String),
-    PlayerNameEmpty,
+    PlayerNameProblem,
     SurrealError(surrealdb::Error),
     EnvVarDecodeError(base64::DecodeError),
     TokenDecodeError,
@@ -20,6 +20,7 @@ pub enum Error {
     NoGameError,
     BadLogin,
     LoginErr(LoginErr),
+    Sanitize,
 }
 
 #[derive(Debug)]
@@ -31,10 +32,6 @@ pub enum TokenError {
 #[derive(Debug)]
 pub enum LoginErr {
     TooShort,
-    MissingUppercase,
-    MissingLowercase,
-    MissingDigit,
-    MissingSpecialChar,
     WrongEmail,
     WrongCreds,
 }
@@ -42,13 +39,9 @@ pub enum LoginErr {
 impl LoginErr {
     pub fn to_help_string(&self) -> String {
         match self {
-            LoginErr::TooShort => "Minimaal 8 tekens.".to_string(),
-            LoginErr::MissingUppercase => "Bevat een hoofdletter.".to_string(),
-            LoginErr::MissingLowercase => "Bevat een kleine letter.".to_string(),
-            LoginErr::MissingDigit => "Bevat een cijfer.".to_string(),
-            LoginErr::MissingSpecialChar => "Bevat een speciaal teken.".to_string(),
-            LoginErr::WrongEmail => "Geen email".to_string(),
-            LoginErr::WrongCreds => "Fout email of wachtwrood".to_string(),
+            LoginErr::TooShort => "minimaal 8 tekens".to_string(),
+            LoginErr::WrongEmail => "geen juiste email".to_string(),
+            LoginErr::WrongCreds => "fout email of wachtwoord".to_string(),
         }
     }
 }
@@ -57,13 +50,13 @@ impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::LoginAlreadyExists(s) => {
-                write!(f, "AlreadyExists: account with email {s} already exists")
+                write!(f, "alreadyExists: account with email {s} already exists")
             }
             Error::GameNameExists(s) => {
-                write!(f, "Spel met naam \"{s}\" bestaat al")
+                write!(f, "spel met naam \"{s}\" bestaat al")
             }
-            Error::PlayerNameEmpty => {
-                write!(f, "Minstens 4 namen!")
+            Error::PlayerNameProblem => {
+                write!(f, "geef 4 verschillende namen")
             }
             Error::SurrealError(e) => write!(f, "SurrealError: {e}"),
             Error::TokenDecodeError => write!(f, "Token could not be decoded as base64"),
@@ -78,6 +71,7 @@ impl Display for Error {
             Error::NoGameError => write!(f, "No game for this owner found"),
             Error::BadLogin => write!(f, "This was a bad login"),
             Error::LoginErr(e) => write!(f, "The password does not fulfil: {}", e.to_help_string()),
+            Error::Sanitize => write!(f, "The user input was not valid."),
         }
     }
 }
