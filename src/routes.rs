@@ -8,7 +8,6 @@ use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
-use http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -388,6 +387,7 @@ pub async fn new_game(
     )
 }
 
+#[axum::debug_handler]
 pub async fn deal_form(
     State(db): State<Db>,
     Path(game_id): Path<String>,

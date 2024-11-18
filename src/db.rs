@@ -192,27 +192,29 @@ pub async fn add_player(
     user_alias: String,
 ) -> Result<(), Error> {
     query!(
-        format!(
-            r#" RELATE login:{user_id}->plays->game:{game_id}
-                SET alias = $user_alias;"#
-        ),
+        r#"
+        LET $login = type::thing(login, $user_id);
+        LET $game = type::thing(game, $game_id);
+        RELATE $login->plays->$game
+                SET alias = $user_alias;"#,
         db,
-        user_alias
+        user_id,
+        game_id,
+        user_alias,
     );
     Ok(())
 }
 
 pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
     query!(
-        format!(
-            r#"
-         UPDATE game:{id}
+        r#"
+         UPDATE type::thing("game", $id)
          SET game = $game
          WHERE $owner IN <-plays<-login.email;
-         "#
-        ),
+         "#,
         db,
         owner,
+        id,
         game,
     );
     Ok(())
@@ -220,15 +222,14 @@ pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<
 
 pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
     let game: Option<Game> = select!(
-        format!(
-            r#"
+        r#"
          SELECT VALUE game
-         FROM ONLY game:{id}
+         FROM ONLY type::thing(game, $id) 
          WHERE $owner IN <-plays<-login.email;
-         "#
-        ),
+         "#,
         db,
-        owner,
+        id,
+        owner
     );
 
     game.ok_or(Error::NoGameError)
@@ -250,15 +251,14 @@ pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Er
 
 pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, Error> {
     let game: Option<Game> = select!(
-        format!(
-            r#"
+        r#"
             SELECT VALUE game
-            FROM ONLY game:{id}
+            FROM ONLY type::thing(game, $id)
             WHERE $owner IN <-plays<-login.email
             LIMIT 1;
-            "#
-        ),
+            "#,
         db,
+        id,
         owner
     );
 
@@ -267,13 +267,12 @@ pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, E
 
 pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), Error> {
     query!(
-        format!(
-            r#"
-            DELETE game:{id}
+        r#"
+            DELETE type::thing(game, $id)
             WHERE $owner IN <-plays<-login.email;
-            "#
-        ),
+            "#,
         db,
+        id,
         owner
     );
 

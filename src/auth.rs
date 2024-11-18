@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, LoginErr, TokenError};
 
-const EXPECTED: &str = "This is a signed token for the bonkrank website";
+const EXPECTED: &str = "This is a signed token for the whistbook website";
 const TOKEN_HOURS: u64 = 2;
 
 #[derive(Serialize, Deserialize)]
