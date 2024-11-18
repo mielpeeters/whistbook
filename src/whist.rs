@@ -29,7 +29,7 @@ pub fn duo_bids() -> Vec<String> {
     DUOBIDS.iter().map(|s| s.to_string()).collect()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Bid {
     Solo(i16),
     Samen(i16),
@@ -354,10 +354,11 @@ pub struct Game {
     pub players: Players,
     /// cumulative points of the game
     pub scores: Vec<Points>,
+    pub deals: Vec<Deal>,
 }
 
 /// Team holds indexes into the Player struct that define the team
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Team {
     Solo(usize),
     Duo(usize, usize),
@@ -365,6 +366,7 @@ pub enum Team {
 
 /// Keeps the results of a game
 /// team is in relation to the Players struct that is defined elsewhere
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Deal {
     pub team: Team,
     pub bid: Bid,
@@ -407,10 +409,12 @@ impl Game {
             name,
             players,
             scores: vec![],
+            deals: vec![],
         }
     }
 
     pub fn add_deal(&mut self, deal: Deal) {
+        self.deals.push(deal.clone());
         let points = deal.to_points();
         self.add_points(points);
     }

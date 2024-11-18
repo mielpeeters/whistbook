@@ -354,7 +354,8 @@ pub async fn new_game(
             let players: Players =
                 [&form.player1, &form.player2, &form.player3, &form.player4].into();
 
-            let (id, game) = dbg!(start_game(db.clone(), form.name, players).await)
+            let (id, game) = start_game(db.clone(), form.name, players)
+                .await
                 .map_err(|e| e.into_alert())?;
 
             // add all given logins as players of this game

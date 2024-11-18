@@ -43,6 +43,7 @@
   @apply hover:-translate-y-[1px];
   @apply underline decoration-transparent decoration-2;
   @apply hover:decoration-current;
+  @apply select-none;
 }
 
 .center {
