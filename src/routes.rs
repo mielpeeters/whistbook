@@ -8,6 +8,7 @@ use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -67,24 +68,44 @@ impl KeyExtractor for RateLimitToken {
     type Key = String;
 
     fn extract<B>(&self, req: &http::request::Request<B>) -> Result<Self::Key, GovernorError> {
-        req.headers()
-            .get("x-forwarded-for")
-            .and_then(|token| token.to_str().ok())
-            .map(|token| token.trim().to_owned())
-            .ok_or(GovernorError::Other {
-                code: StatusCode::UNAUTHORIZED,
-                msg: Some("You don't have permission to access".to_string()),
-                headers: None,
-            })
+        if cfg!(debug_assertions) {
+            req.headers()
+                .get("connection")
+                .and_then(|token| token.to_str().ok())
+                .map(|token| token.trim().to_owned())
+                .ok_or(GovernorError::Other {
+                    code: StatusCode::UNAUTHORIZED,
+                    msg: Some("You don't have permission to access".to_string()),
+                    headers: None,
+                })
+        } else {
+            req.headers()
+                .get("x-forwarded-for")
+                .and_then(|token| token.to_str().ok())
+                .map(|token| token.trim().to_owned())
+                .ok_or(GovernorError::Other {
+                    code: StatusCode::UNAUTHORIZED,
+                    msg: Some("You don't have permission to access".to_string()),
+                    headers: None,
+                })
+        }
     }
 }
 
 pub async fn router(app_state: Db) -> Router {
     let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
-            .per_second(3)
-            .burst_size(10)
+            .per_second(1)
+            .burst_size(20)
+            .use_headers()
             .key_extractor(RateLimitToken)
+            .error_handler(|_| {
+                AlertTemplate {
+                    code: StatusCode::TOO_MANY_REQUESTS,
+                    alert: "Slow down there".into(),
+                }
+                .into_response()
+            })
             .finish()
             .unwrap(),
     );
@@ -97,7 +118,7 @@ pub async fn router(app_state: Db) -> Router {
         governor_limiter.retain_recent();
     });
 
-    let router = axum::Router::new()
+    let mut router = axum::Router::new()
         .route("/", get(index))
         .route("/login", get(login))
         .route("/register", post(register))
@@ -118,8 +139,13 @@ pub async fn router(app_state: Db) -> Router {
         .with_state(app_state);
 
     if cfg!(debug_assertions) {
-        router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)))
+        // debug only
+        router = router.layer(LiveReloadLayer::new().reload_interval(Duration::from_millis(2000)));
+        router.layer(GovernorLayer {
+            config: governor_conf,
+        })
     } else {
+        // release only
         router.layer(GovernorLayer {
             config: governor_conf,
         })
