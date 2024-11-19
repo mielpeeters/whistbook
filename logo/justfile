@@ -1,0 +1,11 @@
+build:
+  typst compile logo.typ logo.svg
+
+open:
+  xdg-open logo.svg
+
+watch:
+  typst watch logo.typ logo.svg
+
+start: build open watch
+
