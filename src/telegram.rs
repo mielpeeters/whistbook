@@ -13,7 +13,7 @@ use crate::error::Error;
 async fn send_access_request(name: String) -> Result<i64, Error> {
     let json = serde_json::json!({
         "text": format!("{name} has requested access"),
-        "chat_id": std::env::var("TEL_USR_ID").unwrap_or("12345678".into()),
+        "chat_id": crate::config().telegram_user_id,
         "parse_mode": "MarkdownV2",
         "reply_markup": {
         "inline_keyboard": [
@@ -33,7 +33,7 @@ async fn send_access_request(name: String) -> Result<i64, Error> {
 
     let url = format!(
         "https://api.telegram.org/bot{}/sendMessage",
-        std::env::var("TEl_BOT_KEY").unwrap_or("YEAH".into())
+        crate::config().telegram_bot_key
     );
 
     let client = Client::new();

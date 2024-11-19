@@ -1,6 +1,7 @@
 #![feature(let_chains)]
 #![feature(duration_constructors)]
 pub mod auth;
+pub mod config;
 mod db;
 mod embed;
 pub mod error;
@@ -8,6 +9,8 @@ mod routes;
 pub mod telegram;
 mod template;
 pub mod whist;
+
+pub use config::config;
 
 use std::ops::Deref;
 use std::sync::Arc;
@@ -44,13 +47,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = routes::router(db.clone()).await;
 
-    let port = std::env::var("PORT").unwrap_or("8080".into());
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
-    println!("Listening on port {}", port);
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", config().port)).await?;
+    println!("Listening on port {}", config().port);
 
-    let domain = std::env::var("DOMAIN").unwrap_or("https://whist.mielpeeters.be".into());
-    println!("Deploying on {domain}");
-    qr2term::print_qr(&domain).unwrap();
+    println!("Deploying on {}", config().domain);
+    qr2term::print_qr(&config().domain).unwrap();
 
     axum::serve(listener, app).await?;
     return Ok(());

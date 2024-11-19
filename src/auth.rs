@@ -46,14 +46,8 @@ impl Token {
     }
 }
 
-pub fn get_env_key(env_var: &str) -> Result<Vec<u8>, Error> {
-    let key_b64 =
-        std::env::var(env_var).unwrap_or("TvuUto7mf8EHYHzzV/sL25hzjQODnDv/4BXpg0laDfE=".into());
-    STANDARD.decode(key_b64).map_err(Error::EnvVarDecodeError)
-}
-
 pub fn create_token(user: String) -> Result<String, Error> {
-    let key = get_env_key("TOKEN_KEY")?;
+    let key: Vec<u8> = crate::config().session_token_key.clone().into();
 
     // key needs to be 32 bytes long
 
@@ -79,7 +73,7 @@ pub fn verify_token(token: &str) -> Result<Token, Error> {
 
     let (signed_token, nonce) = token.split_at(token.len() - 12);
 
-    let key = get_env_key("TOKEN_KEY")?;
+    let key: Vec<u8> = crate::config().session_token_key.clone().into();
 
     // key needs to be 32 bytes long
 
@@ -98,12 +92,6 @@ pub fn verify_token(token: &str) -> Result<Token, Error> {
     }
 
     Ok(token)
-}
-
-pub fn check_webhook_secret(secret: &[u8]) -> Result<bool, Error> {
-    let key = get_env_key("WEBHOOK_SECRET")?;
-
-    Ok(key == secret)
 }
 
 pub fn check_email(email: &str) -> bool {

@@ -77,8 +77,6 @@ macro_rules! select {
 }
 
 pub async fn get_db() -> Result<Surreal<Any>, surrealdb::Error> {
-    let endpoint = std::env::var("DB_ENDPOINT").unwrap_or("ws://localhost:34343".to_owned());
-
     let root = Root {
         username: "root",
         password: "root",
@@ -86,7 +84,7 @@ pub async fn get_db() -> Result<Surreal<Any>, surrealdb::Error> {
 
     let config = Config::new().user(root);
 
-    let db = any::connect((endpoint, config)).await?;
+    let db = any::connect((crate::config().db_endpoint.clone(), config)).await?;
 
     db.signin(root).await?;
 
