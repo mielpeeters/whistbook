@@ -10,7 +10,7 @@ pub mod telegram;
 mod template;
 pub mod whist;
 
-pub use config::config;
+pub use config::{config, config_bytes};
 
 use std::ops::Deref;
 use std::sync::Arc;
@@ -47,11 +47,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = routes::router(db.clone()).await;
 
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", config().port)).await?;
-    println!("Listening on port {}", config().port);
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", config("PORT").unwrap())).await?;
+    println!("Listening on port {}", config("PORT").unwrap());
 
-    println!("Deploying on {}", config().domain);
-    qr2term::print_qr(&config().domain).unwrap();
+    println!("Deploying on {}", config("DOMAIN").unwrap());
+    qr2term::print_qr(config("DOMAIN").unwrap()).unwrap();
 
     axum::serve(listener, app).await?;
     return Ok(());

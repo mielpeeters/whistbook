@@ -76,19 +76,25 @@ macro_rules! select {
     };
 }
 
-pub async fn get_db() -> Result<Surreal<Any>, surrealdb::Error> {
+pub async fn get_db() -> Result<Surreal<Any>, Error> {
     let root = Root {
         username: "root",
         password: "root",
     };
 
     let config = Config::new().user(root);
+    let endpoint = crate::config("DB_ENDPOINT")?.clone();
 
-    let db = any::connect((crate::config().db_endpoint.clone(), config)).await?;
+    let db = any::connect((endpoint, config))
+        .await
+        .map_err(Error::SurrealError)?;
 
-    db.signin(root).await?;
+    db.signin(root).await.map_err(Error::SurrealError)?;
 
-    db.use_ns(NS).use_db(DB).await?;
+    db.use_ns(NS)
+        .use_db(DB)
+        .await
+        .map_err(Error::SurrealError)?;
 
     Ok(db)
 }

@@ -194,7 +194,7 @@ async fn register(
     let res = set_login(state.0.clone(), &login.0.email, &login.0.password).await;
 
     if let Err(Error::LoginErr(e)) = res {
-        let message = e.to_help_string();
+        let message = e.to_string();
 
         return Err(AlertTemplate {
             code: StatusCode::BAD_REQUEST,

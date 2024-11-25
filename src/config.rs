@@ -1,87 +1,78 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-static CONFIG: OnceLock<Config> = OnceLock::new();
+use crate::error::Error;
+
+pub static CONFIG: OnceLock<Config> = OnceLock::new();
 
 #[derive(Clone, Debug)]
-pub struct Config {
-    pub port: String,
-    pub domain: String,
-    pub db_endpoint: String,
-    pub session_token_key: String,
-    pub telegram_user_id: String,
-    pub telegram_bot_key: String,
+pub struct Config(HashMap<String, String>);
+
+pub fn config(key: &str) -> Result<&String, Error> {
+    CONFIG
+        .get_or_init(Config::load)
+        .0
+        .get(key)
+        .ok_or(Error::EnvVar(key.into()))
 }
 
-pub fn config() -> &'static Config {
-    CONFIG.get_or_init(Config::load)
-}
-
-fn parse_env_file(file: &str) -> HashMap<String, String> {
-    let mut env_map = HashMap::new();
-
-    for line in file.lines() {
-        // Trim whitespace and skip empty lines or comments
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        // Split the line into key and value
-        if let Some((key, value)) = line.split_once('=') {
-            let key = key.trim().to_string();
-            let value = value.trim().to_string();
-            env_map.insert(key, value);
-        }
-    }
-
-    env_map
+pub fn config_bytes(key: &str) -> Result<Vec<u8>, Error> {
+    CONFIG
+        .get_or_init(Config::load)
+        .0
+        .get(key)
+        .ok_or(Error::EnvVar(key.into()))
+        .map(|string| string.clone().into())
 }
 
 impl Config {
     pub fn load() -> Self {
-        // read the .env file
-        let env_file = std::fs::read_to_string(".env").expect("make a .env file at root");
+        let file = std::fs::read_to_string(".env").unwrap_or_else(|_| {
+            std::fs::read_to_string(".env.dev").expect("you either .env or .env.dev")
+        });
 
-        let envs = parse_env_file(&env_file);
+        let mut env_map = HashMap::new();
 
-        let default_config = Config::default();
+        for line in file.lines() {
+            // Trim whitespace and skip empty lines or comments
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
 
-        Self {
-            port: envs.get("PORT").unwrap_or(&default_config.port).to_string(),
-            domain: envs
-                .get("DOMAIN")
-                .unwrap_or(&default_config.domain)
-                .to_string(),
-            db_endpoint: envs
-                .get("DB_ENDPOINT")
-                .unwrap_or(&default_config.db_endpoint)
-                .to_string(),
-            session_token_key: envs
-                .get("TOKEN_KEY")
-                .unwrap_or(&default_config.session_token_key)
-                .to_string(),
-            telegram_user_id: envs
-                .get("TEL_USR_ID")
-                .unwrap_or(&default_config.telegram_user_id)
-                .to_string(),
-            telegram_bot_key: envs
-                .get("TEL_BOT_KEY")
-                .unwrap_or(&default_config.telegram_bot_key)
-                .to_string(),
+            // Split the line into key and value
+            if let Some((key, value)) = line.split_once('=') {
+                let key = key.trim().to_string();
+                let value = value.trim().to_string();
+                env_map.insert(key, value);
+            }
         }
+
+        // resolve nested env vars
+        let mut resolved_map = HashMap::new();
+        for (key, value) in env_map.iter() {
+            let mut resolved_value = value.clone();
+
+            while let Some(start) = resolved_value.find("${") {
+                if let Some(end) = resolved_value[start..].find("}") {
+                    let var_name = &resolved_value[start + 2..start + end];
+                    if let Some(var_value) = env_map.get(var_name) {
+                        resolved_value.replace_range(start..start + end + 1, var_value);
+                    } else {
+                        // If the variable is not found, leave it as is
+                        break;
+                    }
+                }
+            }
+
+            // Insert the resolved value into the final map
+            resolved_map.insert(key.clone(), resolved_value);
+        }
+
+        Self(resolved_map)
     }
-}
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            port: "8080".into(),
-            domain: "http://localhost:8080".into(),
-            db_endpoint: "ws://localhost:5556".into(),
-            session_token_key: "TvuUto7mf8EHYHzzV/sL25hzjQODnDv/4BXpg0laDfE=".into(),
-            telegram_user_id: "0123456789".into(),
-            telegram_bot_key: "0123456789".into(),
-        }
+    pub fn show(&self) {
+        println!("config: {self:?}");
     }
 }

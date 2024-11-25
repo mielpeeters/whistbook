@@ -1,11 +1,19 @@
+ppi := "1000"
+
 build:
-  typst compile logo.typ logo.svg
+  typst compile logo.typ logo.png --ppi {{ppi}}
 
 open:
-  xdg-open logo.svg
+  xdg-open logo.png
 
 watch:
-  typst watch logo.typ logo.svg
+  typst watch logo.typ logo.png --ppi {{ppi}}
 
 start: build open watch
 
+convert: build
+  convert -resize 512x512 logo.png ../public/icons/512.png
+  convert -resize 192x192 logo.png ../public/icons/192.png
+  convert -resize 32x32 logo.png ../public/icons/favicon-32.png
+  convert -resize 16x16 logo.png ../public/icons/favicon-16.png
+  convert -resize 64x64 logo.png ../public/icons/favicon-64.png

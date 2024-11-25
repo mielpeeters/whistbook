@@ -4,22 +4,39 @@ use http::StatusCode;
 
 use crate::template::AlertTemplate;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("alreadyExists: account with email {0} already exists")]
     LoginAlreadyExists(String),
+    #[error("spel met naam \"{0}\" bestaat al")]
     GameNameExists(String),
+    #[error("geef 4 verschillende namen")]
     PlayerNameProblem,
-    SurrealError(surrealdb::Error),
+    #[error("SurrealError: {0}")]
+    SurrealError(#[from] surrealdb::Error),
+    #[error("Env Var decoding failed: {0}")]
     EnvVarDecodeError(base64::DecodeError),
+    #[error("Please set the {0} env variable in .env or .env.dev")]
+    EnvVar(String),
+    #[error("Token could not be decoded as base64")]
     TokenDecodeError,
+    #[error("Token had an error: {0}")]
     TokenError(TokenError),
+    #[error("Encryption error")]
     EncryptError,
+    #[error("Decryption error")]
     DecryptError,
+    #[error("Secrets do not match")]
     WrongSecret,
+    #[error("Reqwest error: {0}")]
     ReqwestError(reqwest::Error),
+    #[error("No gam efor this owner has been found")]
     NoGameError,
+    #[error("This was a bad login")]
     BadLogin,
+    #[error("The password does not fulfil: {0}")]
     LoginErr(LoginErr),
+    #[error("The user input was not valid.")]
     Sanitize,
 }
 
@@ -36,47 +53,15 @@ pub enum LoginErr {
     WrongCreds,
 }
 
-impl LoginErr {
-    pub fn to_help_string(&self) -> String {
-        match self {
-            LoginErr::TooShort => "minimaal 8 tekens".to_string(),
-            LoginErr::WrongEmail => "geen juiste email".to_string(),
-            LoginErr::WrongCreds => "fout email of wachtwoord".to_string(),
-        }
-    }
-}
-
-impl Display for Error {
+impl Display for LoginErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::LoginAlreadyExists(s) => {
-                write!(f, "alreadyExists: account with email {s} already exists")
-            }
-            Error::GameNameExists(s) => {
-                write!(f, "spel met naam \"{s}\" bestaat al")
-            }
-            Error::PlayerNameProblem => {
-                write!(f, "geef 4 verschillende namen")
-            }
-            Error::SurrealError(e) => write!(f, "SurrealError: {e}"),
-            Error::TokenDecodeError => write!(f, "Token could not be decoded as base64"),
-            Error::TokenError(token_error) => write!(f, "Token had an error: {token_error}"),
-            Error::EncryptError => write!(f, "Encryption error"),
-            Error::DecryptError => write!(f, "Decryption error"),
-            Error::EnvVarDecodeError(decode_error) => {
-                write!(f, "Env Var decoding failed: {}", decode_error)
-            }
-            Error::WrongSecret => write!(f, "Secrets do not match"),
-            Error::ReqwestError(e) => write!(f, "ReqwestError: {e}"),
-            Error::NoGameError => write!(f, "No game for this owner found"),
-            Error::BadLogin => write!(f, "This was a bad login"),
-            Error::LoginErr(e) => write!(f, "The password does not fulfil: {}", e.to_help_string()),
-            Error::Sanitize => write!(f, "The user input was not valid."),
+            LoginErr::TooShort => write!(f, "minimaal 8 tekens"),
+            LoginErr::WrongEmail => write!(f, "geen juiste email"),
+            LoginErr::WrongCreds => write!(f, "fout email of wachtwoord"),
         }
     }
 }
-
-impl std::error::Error for Error {}
 
 impl Display for TokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -86,8 +71,6 @@ impl Display for TokenError {
         }
     }
 }
-
-impl std::error::Error for TokenError {}
 
 impl Error {
     pub fn into_alert(self) -> AlertTemplate {

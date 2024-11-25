@@ -47,7 +47,8 @@ impl Token {
 }
 
 pub fn create_token(user: String) -> Result<String, Error> {
-    let key: Vec<u8> = crate::config().session_token_key.clone().into();
+    let key: Vec<u8> = crate::config_bytes("TOKEN_KEY")?;
+    let key = STANDARD.decode(key).map_err(Error::EnvVarDecodeError)?;
 
     // key needs to be 32 bytes long
 
@@ -73,7 +74,8 @@ pub fn verify_token(token: &str) -> Result<Token, Error> {
 
     let (signed_token, nonce) = token.split_at(token.len() - 12);
 
-    let key: Vec<u8> = crate::config().session_token_key.clone().into();
+    let key: Vec<u8> = crate::config_bytes("TOKEN_KEY")?;
+    let key = STANDARD.decode(key).map_err(Error::EnvVarDecodeError)?;
 
     // key needs to be 32 bytes long
 
