@@ -18,3 +18,5 @@ services:
     ports:
       - 41414:43434
     command: ./target/release/whistbook
+    depends_on:
+      - surrealdb
