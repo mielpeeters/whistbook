@@ -16,5 +16,5 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 43434:43434
+      - 41414:43434
     command: ./target/release/whistbook
