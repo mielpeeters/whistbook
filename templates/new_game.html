@@ -28,7 +28,38 @@
     {% call player_input::player_input("player 2", "2", "Bob")%}
     {% call player_input::player_input("player 3", "3", "Charlie")%}
     {% call player_input::player_input("player 4", "4", "Dave")%}
-    <button type="submit" class="button mt-4">verzend</button>
+    <span id="p5" class="hidden opacity-0">
+    {% call player_input::player_input("player 5", "5", "Eve")%}
+    </span>
+    <span id="p6" class="hidden opacity-0">
+    {% call player_input::player_input("player 6", "6", "Fred")%}
+    </span>
+    <span id="p7" class="hidden opacity-0">
+    {% call player_input::player_input("player 7", "7", "Greg")%}
+    </span>
+    <div class="grid grid-cols-7 gap-2">
+        <button id="morePlayers" type="button" class="button mt-4"
+            _ = "
+            on load
+                set :next to 5
+            on click
+                if :next == 5
+                    then remove .hidden from #p5
+                    then transition #p5's opacity to 1 over 200ms
+                    then increment :next
+                else if :next == 6
+                    then remove .hidden from #p6
+                    then transition #p6's opacity to 1 over 200ms
+                    then increment :next
+                else if :next == 7
+                    then remove .hidden from #p7
+                    then transition #p7's opacity to 1 over 200ms
+                    then increment :next
+                end
+            "
+            >+</button>
+        <button type="submit" class="button mt-4 col-span-6">verzend</button>
+    </div>
     <div id="alert" class="h-8"></div>
   </form>
 </div>

@@ -207,11 +207,11 @@ impl Bid {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Points([i16; 4]);
+pub struct Points(Vec<i16>);
 
 impl Points {
-    const fn new() -> Self {
-        Points([0, 0, 0, 0])
+    fn new(num_players: usize) -> Self {
+        Points(vec![0; num_players])
     }
 
     pub fn positive(&self, i: &usize) -> bool {
@@ -219,10 +219,9 @@ impl Points {
     }
 }
 
-impl Default for &Points {
+impl Default for Points {
     fn default() -> Self {
-        const POINTS: Points = Points::new();
-        &POINTS
+        Points::new(4)
     }
 }
 
@@ -246,16 +245,25 @@ impl AddAssign for Points {
     }
 }
 
+impl From<&[i16]> for Points {
+    fn from(value: &[i16]) -> Self {
+        let mut result = Self::new(0);
+        result.0.extend(value.iter());
+        result
+    }
+}
+
 impl Add for Points {
     type Output = Points;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Points([
-            self.0[0] + rhs.0[0],
-            self.0[1] + rhs.0[1],
-            self.0[2] + rhs.0[2],
-            self.0[3] + rhs.0[3],
-        ])
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x + rhs[i])
+            .collect::<Vec<_>>()
+            .as_slice()
+            .into()
     }
 }
 
@@ -263,12 +271,13 @@ impl<'b> Sub<&'b Points> for &Points {
     type Output = Points;
 
     fn sub(self, rhs: &'b Points) -> Self::Output {
-        Points([
-            self.0[0] - rhs.0[0],
-            self.0[1] - rhs.0[1],
-            self.0[2] - rhs.0[2],
-            self.0[3] - rhs.0[3],
-        ])
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x - rhs[i])
+            .collect::<Vec<_>>()
+            .as_slice()
+            .into()
     }
 }
 
@@ -276,17 +285,34 @@ impl<'b> Add<&'b Points> for &Points {
     type Output = Points;
 
     fn add(self, rhs: &'b Points) -> Self::Output {
-        Points([
-            self.0[0] + rhs.0[0],
-            self.0[1] + rhs.0[1],
-            self.0[2] + rhs.0[2],
-            self.0[3] + rhs.0[3],
-        ])
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x + rhs[i])
+            .collect::<Vec<_>>()
+            .as_slice()
+            .into()
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Players([String; 4]);
+pub struct Players(Vec<String>);
+
+impl Players {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
+
+    pub fn opt_add_player(&mut self, opt_player: &str) {
+        if !opt_player.is_empty() {
+            self.0.push(opt_player.to_string())
+        }
+    }
+}
 
 impl Index<usize> for Players {
     type Output = str;
@@ -296,42 +322,28 @@ impl Index<usize> for Players {
     }
 }
 
-impl From<[String; 4]> for Players {
-    fn from(value: [String; 4]) -> Self {
-        Self(value)
+impl From<&[String]> for Players {
+    fn from(value: &[String]) -> Self {
+        Self(value.to_vec())
     }
 }
 
-impl From<[&String; 4]> for Players {
-    fn from(value: [&String; 4]) -> Self {
-        Self(
-            value
-                .iter()
-                .map(|&p| p.to_owned())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
-        )
+impl From<&[&String]> for Players {
+    fn from(value: &[&String]) -> Self {
+        Self(value.iter().map(|&p| p.to_owned()).collect::<Vec<_>>())
     }
 }
 
-impl From<[&str; 4]> for Players {
-    fn from(value: [&str; 4]) -> Self {
-        Self(
-            value
-                .iter()
-                .map(|p| p.to_string())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
-        )
+impl From<&[&str]> for Players {
+    fn from(value: &[&str]) -> Self {
+        Self(value.iter().map(|p| p.to_string()).collect::<Vec<_>>())
     }
 }
 
 // Implement IntoIterator for Players, consuming the struct
 impl IntoIterator for Players {
     type Item = String;
-    type IntoIter = std::array::IntoIter<String, 4>;
+    type IntoIter = std::vec::IntoIter<String>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -360,8 +372,8 @@ pub struct Game {
 /// Team holds indexes into the Player struct that define the team
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Team {
-    Solo(usize),
-    Duo(usize, usize),
+    Solo(usize, (usize, usize, usize)),
+    Duo((usize, usize), (usize, usize)),
 }
 
 /// Keeps the results of a game
@@ -374,27 +386,25 @@ pub struct Deal {
 }
 
 impl Deal {
-    pub fn to_points(self) -> Points {
-        let mut points = Points::new();
+    pub fn to_points(self, num_players: usize) -> Points {
+        let mut points = Points::new(num_players);
 
         let team_point = self.bid.points(self.achieved);
 
         match self.team {
-            Team::Solo(player) => {
+            Team::Solo(player, opps) => {
                 points[player] = 3 * team_point;
-                (0..4).filter(|&i| i != player).for_each(|opp| {
-                    points[opp] = -team_point;
-                })
-            }
-            Team::Duo(player_one, player_two) => {
-                points[player_one] = team_point;
-                points[player_two] = team_point;
 
-                (0..4)
-                    .filter(|&i| i != player_one && i != player_two)
-                    .for_each(|opp| {
-                        points[opp] = -team_point;
-                    });
+                points[opps.0] = -team_point;
+                points[opps.1] = -team_point;
+                points[opps.2] = -team_point;
+            }
+            Team::Duo(players, opps) => {
+                points[players.0] = team_point;
+                points[players.1] = team_point;
+
+                points[opps.0] = -team_point;
+                points[opps.1] = -team_point;
             }
         }
 
@@ -407,15 +417,15 @@ impl Game {
         let players: Players = players.into();
         Self {
             name,
+            scores: vec![Points::new(players.len())],
             players,
-            scores: vec![],
             deals: vec![],
         }
     }
 
     pub fn add_deal(&mut self, deal: Deal) {
         self.deals.push(deal.clone());
-        let points = deal.to_points();
+        let points = deal.to_points(self.players.len());
         self.add_points(points);
     }
 
@@ -428,8 +438,8 @@ impl Game {
         }
     }
 
-    pub fn last_score(&self) -> Option<&Points> {
-        self.scores.last()
+    pub fn last_score(&self) -> &Points {
+        self.scores.last().unwrap()
     }
 
     /// Returns the points that were achieved in the round

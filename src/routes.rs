@@ -244,73 +244,121 @@ async fn deal(
     Path(game_id): Path<String>,
     jar: CookieJar,
     body: String,
-) -> Result<impl IntoResponse, impl IntoResponse> {
-    auth!(jar, token, {
-        let body = urlencoding::decode(&body).unwrap().into_owned();
-        let parts = body.split('&').map(|part| {
-            let mut key_and_value = part.split('=');
-            (key_and_value.next().unwrap(), key_and_value.next().unwrap())
-        });
+) -> Result<impl IntoResponse, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            let body = urlencoding::decode(&body).unwrap().into_owned();
+            let parts = body.split('&').map(|part| {
+                let mut key_and_value = part.split('=');
+                (key_and_value.next().unwrap(), key_and_value.next().unwrap())
+            });
 
-        let mut team = vec![];
-        let mut bid = Bid::GrandSlam;
-        let mut slagen = 13;
+            let mut team = vec![];
+            let mut opps = vec![];
+            let mut bid = Bid::GrandSlam;
+            let mut slagen = 13;
 
-        for (key, value) in parts {
-            match key {
-                "team" => team.push(value.to_string()),
-                "bid" => bid = value.into(),
-                "slagen" => slagen = value.parse().unwrap(),
-                _ => unreachable!(),
+            for (key, value) in parts {
+                match key {
+                    "team" => team.push(value.to_string()),
+                    "bid" => bid = value.into(),
+                    "slagen" => slagen = value.parse().unwrap(),
+                    "opp" => opps.push(value.to_string()),
+                    _ => unreachable!(),
+                }
             }
-        }
 
-        let mut current_game = get_game(db.clone(), token.user.clone(), game_id.clone())
+            let mut current_game = get_game(db.clone(), token.user.clone(), game_id.clone())
+                .await
+                .unwrap();
+
+            // convert team into a usize or (usize, usize)
+            let mut indexes: Vec<_> = team
+                .iter()
+                .map(|player| {
+                    current_game
+                        .players
+                        .clone()
+                        .into_iter()
+                        .position(|p| p.to_lowercase() == player.to_lowercase())
+                        .unwrap()
+                })
+                .collect();
+
+            let other_indexes: Vec<_> = if opps.is_empty() {
+                (0..4)
+                    .filter(|i| !indexes.iter().any(|j| *i == *j))
+                    .collect()
+            } else {
+                opps.iter()
+                    .map(|player| {
+                        current_game
+                            .players
+                            .clone()
+                            .into_iter()
+                            .position(|p| p.to_lowercase() == player.to_lowercase())
+                            .unwrap()
+                    })
+                    .collect()
+            };
+
+            let team = match indexes.len() {
+                1 => {
+                    if other_indexes.len() != 3 {
+                        return Err(AlertTemplate::bad_request("need three opponents"));
+                    }
+                    Team::Solo(
+                        indexes[0],
+                        (other_indexes[0], other_indexes[1], other_indexes[2]),
+                    )
+                }
+                2 => {
+                    if other_indexes.len() != 2 {
+                        return Err(AlertTemplate::bad_request("need two opponents"));
+                    }
+                    Team::Duo(
+                        (indexes[0], indexes[1]),
+                        (other_indexes[0], other_indexes[1]),
+                    )
+                }
+                _ => unreachable!(),
+            };
+
+            current_game.add_deal(Deal {
+                team,
+                bid,
+                achieved: slagen,
+            });
+
+            let points = current_game.last_diff().unwrap();
+            let players = current_game.players.clone();
+            let scores = current_game.scores.last().unwrap().clone();
+
+            save_game(
+                db.clone(),
+                token.user.clone(),
+                game_id.clone(),
+                current_game,
+            )
             .await
-            .unwrap();
+            .map_err(|_| AlertTemplate::internal_server_error())?;
 
-        // convert team into a usize or (usize, usize)
-        let mut indexes = team.iter().map(|player| {
-            current_game
-                .players
-                .clone()
-                .into_iter()
-                .position(|p| p.to_lowercase() == player.to_lowercase())
-                .unwrap()
-        });
-
-        let team = match indexes.len() {
-            1 => Team::Solo(indexes.next().unwrap()),
-            2 => Team::Duo(indexes.next().unwrap(), indexes.next().unwrap()),
-            _ => unreachable!(),
-        };
-
-        current_game.add_deal(Deal {
-            team,
-            bid,
-            achieved: slagen,
-        });
-
-        let points = current_game.last_diff().unwrap();
-        let players = current_game.players.clone();
-        let scores = current_game.scores.last().unwrap().clone();
-
-        save_game(
-            db.clone(),
-            token.user.clone(),
-            game_id.clone(),
-            current_game,
-        )
-        .await
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-        Ok(HtmlTemplate(PointsTemplate {
-            id: game_id,
-            points,
-            players,
-            scores,
-        }))
-    })
+            Ok(HtmlTemplate(PointsTemplate {
+                id: game_id,
+                points,
+                players,
+                scores,
+            }))
+        },
+        {
+            Err(AlertTemplate {
+                code: 401.try_into().unwrap(),
+                alert: "Unauthorized".into(),
+            })
+        }
+    )
 }
 
 pub async fn new_game_form(jar: CookieJar) -> Result<impl IntoResponse, impl IntoResponse> {
@@ -335,6 +383,18 @@ pub struct NewGameForm {
     id3: String,
     #[garde(alphanumeric)]
     id4: String,
+    #[garde(skip)]
+    player5: String,
+    #[garde(skip)]
+    player6: String,
+    #[garde(skip)]
+    player7: String,
+    #[garde(alphanumeric)]
+    id5: String,
+    #[garde(alphanumeric)]
+    id6: String,
+    #[garde(alphanumeric)]
+    id7: String,
 }
 
 pub async fn new_game(
@@ -346,13 +406,17 @@ pub async fn new_game(
         jar,
         token,
         {
-            // TODO: check if all names are different & non-empty!
-            // TODO: check if the ids are all different!
             let form = form.into_inner();
 
             let owner = token.user;
-            let players: Players =
-                [&form.player1, &form.player2, &form.player3, &form.player4].into();
+            let mut players: Players = [&form.player1, &form.player2, &form.player3, &form.player4]
+                .as_slice()
+                .into();
+
+            // add optional players
+            players.opt_add_player(&form.player5);
+            players.opt_add_player(&form.player6);
+            players.opt_add_player(&form.player7);
 
             let (id, game) = start_game(db.clone(), form.name, players)
                 .await
@@ -375,6 +439,15 @@ pub async fn new_game(
             if !form.id4.is_empty() {
                 int_err!(db::add_player(db.clone(), id.clone(), form.id4, form.player4).await)?;
             }
+            if !form.id5.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id5, form.player5).await)?;
+            }
+            if !form.id6.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id6, form.player6).await)?;
+            }
+            if !form.id7.is_empty() {
+                int_err!(db::add_player(db.clone(), id.clone(), form.id7, form.player7).await)?;
+            }
 
             Ok(HtmlTemplate(GameTemplate {
                 id,
@@ -392,23 +465,16 @@ pub async fn new_game(
     )
 }
 
-#[derive(Deserialize, Validate)]
-pub struct GameId {
-    #[garde(alphanumeric, length(min = 18, max = 22))]
-    id: String,
-}
-
 pub async fn deal_form(
     State(db): State<Db>,
-    WithValidation(game_id): WithValidation<Path<GameId>>,
+    Path(game_id): Path<String>,
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     auth!(jar, token, {
-        let game_id = game_id.into_inner();
-        let game = get_game(db, token.user, game_id.id.clone()).await.unwrap();
+        let game = get_game(db, token.user, game_id.clone()).await.unwrap();
 
         Ok(HtmlTemplate(DealFormTemplate {
-            id: game_id.id,
+            id: game_id,
             game,
             solobids: solo_bids(),
             duobids: duo_bids(),

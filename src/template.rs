@@ -49,6 +49,14 @@ impl AlertTemplate {
             alert: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
         }
     }
+
+    pub fn bad_request(message: &str) -> Self {
+        AlertTemplate {
+            code: StatusCode::BAD_REQUEST,
+            alert: message.to_string(),
+        }
+    }
+
     pub fn unauthorized() -> Self {
         AlertTemplate {
             code: StatusCode::UNAUTHORIZED,
@@ -128,6 +136,15 @@ impl IntoResponse for AlertTemplate {
                 "Failed to render template",
             )
                 .into_response(),
+        }
+    }
+}
+
+impl From<StatusCode> for AlertTemplate {
+    fn from(value: StatusCode) -> Self {
+        Self {
+            code: value.clone(),
+            alert: value.to_string(),
         }
     }
 }

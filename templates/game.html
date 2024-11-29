@@ -4,9 +4,8 @@
     <h2 class="font-medium text-xl text-neutral-800 h-20 w-full text-right">
       {{ game.name }}
     </h2>
-    <div id="gameScores" class="h-20 -mt-8">
-      {% call scrs::scores(game.players, game.last_score().unwrap_or_default(),
-      "") %}
+    <div id="gameScores" class="{%- if game.players.len() > 4 -%} h-28 {%- else -%} h-20 {%- endif %} -mt-8">
+      {% call scrs::scores(game.players, game.last_score(), "") %}
     </div>
     {% include "deal_form.html" %}
   </div>

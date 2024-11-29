@@ -32,6 +32,22 @@
       </div>
       {% endfor %}
     </div>
+    {% if game.players.len() > 4 -%}
+    <button
+      type="button"
+      id="next1"
+      _="
+                on click 
+                transition #step1's opacity to 0 over 250ms
+                then add .hidden to #step1 
+                then remove .hidden from #steponehalf
+                then transition #steponehalf's opacity to 1 over 250ms
+                "
+      class="button center mt-12 ml-auto hidden opacity-0"
+    >
+      volgende
+    </button>
+    {% else -%}
     <button
       type="button"
       id="next1"
@@ -51,7 +67,58 @@
     >
       volgende
     </button>
+    {% endif -%}
   </div>
+  {% if game.players.len() > 4 -%}
+  <div id="steponehalf" class="w-full hidden opacity-0">
+    <h2 class="text-neutral-800 font-medium text-lg mb-2">Tegen wie?</h2>
+    <div class="form-grid four-colors">
+      {% for player in game.players %}
+      <div
+        _="on click 
+                    toggle @checked on first <input/> in me 
+                    then toggle .toggled on me
+                    then if I match .toggled
+                        increment $opps
+                    else
+                        decrement $opps
+                    end
+                    then if $players + $opps == 4
+                        remove .hidden from #nextonehalf
+                        then transition #nextonehalf's opacity to 1 over 100ms
+                    else
+                        transition #nextonehalf's opacity to 0 over 100ms 
+                        then add .hidden to #nextonehalf
+                    end
+                    "
+        class="h-16 button center"
+      >
+        <input type="checkbox" name="opp" value="{{player}}" hidden />
+        {{player}}
+      </div>
+      {% endfor %}
+    </div>
+    <button
+      type="button"
+      id="nextonehalf"
+      _="
+                on click 
+                transition #steponehalf's opacity to 0 over 250ms
+                then add .hidden to #steponehalf 
+                then if $players == 1
+                    then remove .hidden from #step2solo
+                    then transition #step2solo's opacity to 1 over 250ms
+                else if $players == 2
+                    then remove .hidden from #step2duo
+                    then transition #step2duo's opacity to 1 over 250ms
+                end
+                "
+      class="button center mt-12 ml-auto hidden opacity-0"
+    >
+      volgende
+    </button>
+  </div>
+  {% endif -%}
   <div id="step2solo" class="hidden opacity-0 w-full">
     <h2 class="text-neutral-800 font-medium text-lg mb-2">
       Wat was het hoogste bod?

@@ -4,7 +4,7 @@
   <h2 class="font-medium text-lg text-neutral-800">{{heading}}</h2>
   {% endif %}
   <div class="grid grid-cols-4 gap-2 four-colors">
-    {% for i in 0..4 %}
+    {% for i in 0..players.len() %}
     <div class="flex flex-col items-center">
       <div>{{players[i]}}</div>
       {% if scores.positive(i) %}
