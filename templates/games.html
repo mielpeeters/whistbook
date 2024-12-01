@@ -31,13 +31,21 @@
         </div>
         <div class="center">
           <span
-            class="cursor-pointer hover:-translate-y-[2px] hover:rotate-2 hover:drop-shadow-md transition-all"
-            ><img
-              src="public/assets/trash.svg"
+            class="cursor-pointer transition-all trashIcon relative"
               hx-delete="/game/{{game.id}}"
               hx-swap="outerHTML"
               hx-target="closest div.game"
-          /></span>
+              hx-confirm="Are you sure you want to delete the {{game.game.name}} game?"
+            >
+            <img
+            class="lid transition-all absolute"
+              src="public/assets/lid.svg"
+          /><img
+            class="bin transition-all"
+              src="public/assets/trash.svg"
+          />
+
+          </span>
         </div>
       </div>
       {% endfor %}

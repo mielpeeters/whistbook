@@ -107,6 +107,18 @@
   opacity: 0;
 }
 
+.trashIcon:hover {
+  .lid {
+    transform: translateY(-7px) rotate(15deg);
+    @apply drop-shadow-md;
+  }
+  
+  .bin {
+    transform: translateY(-2px) rotate(10deg);
+    @apply drop-shadow-md;
+  }
+}
+
 #alert > * {
   animation: fadeInOut 6s ease-in-out forwards;
 }
