@@ -20,6 +20,8 @@ RUN mv ./target/release/whistbook ./app
 
 FROM debian:stable-slim AS runtime
 RUN apt-get update && apt-get install libssl3 libssl-dev
+
 WORKDIR /app
 COPY --from=builder /app/app /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/app"]
+
+CMD ["/usr/local/bin/app"]
