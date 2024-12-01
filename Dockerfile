@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest as chef
+FROM lukemathwalker/cargo-chef:latest AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -20,5 +20,6 @@ RUN mv ./target/release/whistbook ./app
 FROM debian:stable-slim AS runtime
 RUN apt-get update && apt-get install libssl3 libssl-dev
 WORKDIR /app
+COPY .env ./.env
 COPY --from=builder /app/app /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/app"]
