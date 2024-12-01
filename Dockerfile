@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-alpine as chef
+FROM lukemathwalker/cargo-chef:latest as chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -17,7 +17,7 @@ COPY . .
 RUN cargo build --release
 RUN mv ./target/release/whistbook ./app
 
-FROM scratch AS runtime
+FROM debian:stable-slim AS runtime
 WORKDIR /app
 COPY --from=builder /app/app /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/app"]
