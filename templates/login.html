@@ -14,7 +14,7 @@
             id="email"
             name="email"
             placeholder="john.doe@mail.com"
-            hx-trigger="focusout delay:100ms"
+            hx-trigger="paste, input changed delay:600ms"
             hx-swap="innerHTML"
             hx-post="/api/check-email"
             hx-target="#login-actions"

@@ -214,6 +214,13 @@ async fn check_credentials(
     jar: CookieJar,
     Form(login): Form<Login>,
 ) -> Result<impl IntoResponse, AlertTemplate> {
+    if login.validate().is_err() {
+        return Err(AlertTemplate {
+            code: 422.try_into().unwrap(),
+            alert: "not a valid email".into(),
+        });
+    }
+
     let check = crate::db::check_login(db.clone(), &login.email, &login.password).await;
 
     if let Ok(check) = check
@@ -528,9 +535,8 @@ pub async fn delete_game(
     })
 }
 
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize)]
 pub struct Email {
-    #[garde(length(min = 5))]
     email: String,
 }
 
@@ -538,21 +544,8 @@ pub async fn check_email(
     State(db): State<Db>,
     Form(email): Form<Email>,
 ) -> Result<HtmlTemplate<LoginActions>, AlertTemplate> {
-    if let Err(report) = email.validate() {
-        let reports = report.into_inner();
-        return Err(AlertTemplate {
-            code: 422.try_into().unwrap(),
-            alert: reports.first().unwrap().1.to_string(),
-        });
-    };
-
     Ok(HtmlTemplate(LoginActions {
-        exists: email_exists(db, email.email)
-            .await
-            .map_err(|_| AlertTemplate {
-                code: StatusCode::INTERNAL_SERVER_ERROR,
-                alert: "Internal server error".into(),
-            })?,
+        exists: email_exists(db, email.email).await?,
     }))
 }
 

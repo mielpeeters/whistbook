@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use serde::Deserialize;
 
+use crate::error::Error;
 use crate::whist::{Game, Players, Points};
 
 #[derive(Template)]
@@ -143,7 +144,16 @@ impl IntoResponse for AlertTemplate {
 impl From<StatusCode> for AlertTemplate {
     fn from(value: StatusCode) -> Self {
         Self {
-            code: value.clone(),
+            code: value,
+            alert: value.to_string(),
+        }
+    }
+}
+
+impl From<Error> for AlertTemplate {
+    fn from(value: Error) -> Self {
+        AlertTemplate {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
             alert: value.to_string(),
         }
     }
