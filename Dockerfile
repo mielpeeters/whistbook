@@ -1,22 +1,23 @@
-FROM rustlang/rust:nightly-bookworm
+FROM lukemathwalker/cargo-chef:latest-rust-alpine as chef
+WORKDIR /app
 
-# dummy file for dependency building
-RUN mkdir src
-RUN echo 'fn main() { panic!("Dummy Image Called!")}' > ./src/main.rs
-COPY ["Cargo.toml", "Cargo.lock",  "./"]
-RUN cargo build --release
-
-COPY src src
-#need to break the cargo cache
-RUN touch ./src/main.rs
-
-COPY Cargo.toml ./Cargo.toml
-COPY Cargo.lock ./Cargo.lock
+FROM chef AS planner
+COPY ./Cargo.toml ./Cargo.lock ./
+COPY ./src ./src
 COPY .env ./.env
-
 COPY templates/ ./templates/
 COPY public/ ./public/
 
-RUN cargo build --release
+RUN cargo chef prepare
 
-ENV RUST_LOG=debug
+FROM chef AS builder
+COPY --from=planner /app/recipe.json .
+RUN cargo chef cook --release
+COPY . .
+RUN cargo build --release
+RUN mv ./target/release/whistbook ./app
+
+FROM scratch AS runtime
+WORKDIR /app
+COPY --from=builder /app/app /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/app"]

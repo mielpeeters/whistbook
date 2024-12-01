@@ -35,8 +35,9 @@ use crate::Db;
 macro_rules! auth {
     ($jar:ident, $token:ident, $block:block) => {
         #[allow(unused)]
-        if let Some($token) = $jar.get("token")
-            && let Ok($token) = verify_token($token.value())
+        if let Some(Ok($token)) = $jar
+            .get("token")
+            .and_then(|t| Some(verify_token(t.value())))
         {
             $block
         } else {
@@ -46,8 +47,9 @@ macro_rules! auth {
 
     ($jar:ident, $token:ident, $block:block, $else:block) => {
         #[allow(unused)]
-        if let Some($token) = $jar.get("token")
-            && let Ok($token) = verify_token($token.value())
+        if let Some(Ok($token)) = $jar
+            .get("token")
+            .and_then(|t| Some(verify_token(t.value())))
         {
             $block
         } else {
@@ -221,11 +223,9 @@ async fn check_credentials(
         });
     }
 
-    let check = crate::db::check_login(db.clone(), &login.email, &login.password).await;
+    let check = crate::db::check_login(db.clone(), &login.email, &login.password).await?;
 
-    if let Ok(check) = check
-        && check
-    {
+    if check {
         let token = create_token(login.email).map_err(|_| AlertTemplate {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             alert: "int serv err".into(),

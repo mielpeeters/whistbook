@@ -23,7 +23,7 @@ impl Token {
     fn new(message: String, user: String) -> Self {
         let now = std::time::SystemTime::now();
         let expiry = now
-            .checked_add(std::time::Duration::from_hours(TOKEN_HOURS))
+            .checked_add(std::time::Duration::from_secs(TOKEN_HOURS) * 3600)
             .unwrap();
         let expires_at = expiry.duration_since(UNIX_EPOCH).unwrap().as_nanos();
 

@@ -139,10 +139,10 @@ pub async fn set_login(db: Db, email: &str, pw: &str) -> Result<(), Error> {
         .map_err(Error::SurrealError)?;
 
     if let Err(e) = res.check() {
-        if let surrealdb::Error::Db(error) = &e
-            && let surrealdb::error::Db::IndexExists { .. } = error
-        {
-            return Err(Error::LoginAlreadyExists(email.to_string()));
+        if let surrealdb::Error::Db(error) = &e {
+            if let surrealdb::error::Db::IndexExists { .. } = error {
+                return Err(Error::LoginAlreadyExists(email.to_string()));
+            }
         } else {
             return Err(Error::SurrealError(e));
         };
@@ -166,13 +166,13 @@ pub async fn start_game<P: Into<Players>>(
 
     match res.check() {
         Err(e) => {
-            if let surrealdb::Error::Db(error) = &e
-                && let surrealdb::error::Db::IndexExists { .. } = error
-            {
-                Err(Error::GameNameExists(game.name))
-            } else if let surrealdb::Error::Api(error) = &e
-                && let surrealdb::error::Api::Query { .. } = error
-            {
+            if let surrealdb::Error::Db(error) = &e {
+                if let surrealdb::error::Db::IndexExists { .. } = error {
+                    Err(Error::GameNameExists(game.name))
+                } else {
+                    Err(Error::SurrealError(e))
+                }
+            } else if let surrealdb::Error::Api(surrealdb::error::Api::Query { .. }) = &e {
                 Err(Error::PlayerNameProblem)
             } else {
                 Err(Error::SurrealError(e))

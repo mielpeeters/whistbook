@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-#![feature(duration_constructors)]
 pub mod auth;
 pub mod config;
 mod db;

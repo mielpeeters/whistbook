@@ -38,13 +38,15 @@ async fn send_access_request(name: String) -> Result<i64, Error> {
 
     let client = Client::new();
 
-    let message_id = if let Ok(response) = client.post(url).json(&json).send().await
-        && let Ok(resp_json) = response.json::<HashMap<String, Value>>().await
-    {
-        resp_json
-            .get("result")
-            .and_then(|result| result.get("message_id"))
-            .and_then(|id| id.as_i64())
+    let message_id = if let Ok(response) = client.post(url).json(&json).send().await {
+        if let Ok(resp_json) = response.json::<HashMap<String, Value>>().await {
+            resp_json
+                .get("result")
+                .and_then(|result| result.get("message_id"))
+                .and_then(|id| id.as_i64())
+        } else {
+            None
+        }
     } else {
         None
     };
