@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, LoginErr, TokenError};
 
 const EXPECTED: &str = "This is a signed token for the whistbook website";
-const TOKEN_HOURS: u64 = 2;
+const TOKEN_HOURS: u64 = 24;
 
 #[derive(Serialize, Deserialize)]
 pub struct Token {
