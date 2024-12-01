@@ -18,6 +18,7 @@ RUN cargo build --release
 RUN mv ./target/release/whistbook ./app
 
 FROM debian:stable-slim AS runtime
+RUN sudo apt-get install libssl1.0.0 libssl-dev
 WORKDIR /app
 COPY --from=builder /app/app /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/app"]
