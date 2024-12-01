@@ -17,6 +17,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - 41414:43434
+    restart: unless-stopped
     command: ./target/release/whistbook
     depends_on:
       - surrealdb
