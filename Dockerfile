@@ -11,6 +11,8 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json .
 RUN cargo chef cook --release
 
+COPY ./Cargo.toml ./Cargo.lock ./
+COPY ./src ./src
 COPY .env ./.env
 COPY templates/ ./templates/
 COPY public/ ./public/
