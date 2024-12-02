@@ -2,6 +2,7 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
 
 use serde::{Deserialize, Serialize};
 
+/// All bids that are played with one player
 const SOLOBIDS: [&str; 12] = [
     "Solo 5",
     "Solo 6",
@@ -17,6 +18,7 @@ const SOLOBIDS: [&str; 12] = [
     "Solo Slim",
 ];
 
+/// All bids that are played with two players
 const DUOBIDS: [&str; 7] = [
     "Samen 8", "Samen 9", "Samen 10", "Samen 11", "Samen 12", "Samen 13", "Troel",
 ];
