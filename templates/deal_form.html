@@ -9,7 +9,9 @@
     <div class="form-grid four-colors">
       {% for player in game.players %}
       <div
-        _="on click 
+        _="
+        on load set $players to 0
+        on click 
                     toggle @checked on first <input/> in me 
                     then toggle .toggled on me
                     then if I match .toggled
