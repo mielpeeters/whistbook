@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use askama::Template;
 use axum::extract::{Path, State};
-use axum::http::{StatusCode, Uri};
-use axum::response::IntoResponse;
+use axum::http::{HeaderMap, StatusCode, Uri};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
@@ -26,8 +26,9 @@ use crate::db::{
 use crate::embed::StaticFile;
 use crate::error::Error;
 use crate::template::{
-    AlertTemplate, DealFormTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate,
-    LoginActions, LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate, Svg,
+    AlertTemplate, DealFormTemplate, FullGameTemplate, FullGamesTemplate, FullNewGameTemplate,
+    GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate, LoginActions, LoginTemplate,
+    MainTemplate, NewGameTemplate, PointsTemplate, Svg,
 };
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
@@ -368,8 +369,17 @@ async fn deal(
     )
 }
 
-pub async fn new_game_form(jar: CookieJar) -> Result<impl IntoResponse, impl IntoResponse> {
-    auth!(jar, token, { Ok(HtmlTemplate(NewGameTemplate {})) })
+pub async fn new_game_form(
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, impl IntoResponse> {
+    auth!(jar, token, {
+        // full refresh needed
+        if !headers.contains_key("HX-Request") {
+            return Ok(HtmlTemplate(FullNewGameTemplate {}).into_response());
+        }
+        Ok(HtmlTemplate(NewGameTemplate {}).into_response())
+    })
 }
 
 #[derive(Deserialize, Validate)]
@@ -490,34 +500,53 @@ pub async fn deal_form(
 }
 
 pub async fn games(
+    headers: HeaderMap,
     State(db): State<Db>,
     jar: CookieJar,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<Response, impl IntoResponse> {
     auth!(jar, token, {
         let games = get_games_with_ids(db, token.user)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        Ok(HtmlTemplate(GamesTemplate { games }))
+        // check if a full page refresh was requested
+        if !headers.contains_key("HX-Request") {
+            return Ok(HtmlTemplate(FullGamesTemplate { games }).into_response());
+        }
+
+        Ok(HtmlTemplate(GamesTemplate { games }).into_response())
     })
 }
 
 pub async fn game(
+    headers: HeaderMap,
     State(db): State<Db>,
     Path(game_id): Path<String>,
     jar: CookieJar,
-) -> Result<impl IntoResponse, impl IntoResponse> {
+) -> Result<Response, impl IntoResponse> {
     auth!(jar, token, {
         let game = get_game_by_id(db, token.user, game_id.clone())
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // full refresh needed
+        if !headers.contains_key("HX-Request") {
+            return Ok(HtmlTemplate(FullGameTemplate {
+                id: game_id,
+                game,
+                solobids: solo_bids(),
+                duobids: duo_bids(),
+            })
+            .into_response());
+        }
 
         Ok(HtmlTemplate(GameTemplate {
             id: game_id,
             game,
             solobids: solo_bids(),
             duobids: duo_bids(),
-        }))
+        })
+        .into_response())
     })
 }
 

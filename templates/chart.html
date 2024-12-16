@@ -1,0 +1,62 @@
+<canvas id="chart" style="z-index: 5" class="mb-4"></canvas>
+<script>
+  // TODO: replace with tailwind colours
+  const colorscheme = [
+    "#FF572299", // Deep Orange
+    "#FFC10799", // Amber
+    "#4CAF5099", // Green
+    "#2196F399", // Blue
+    "#9C27B099", // Purple
+    "#FF980099", // Orange
+    "#00BCD499", // Cyan
+  ];
+  const pointStyle = [
+    "circle",
+    "cross",
+    "crossRot",
+    "dash",
+    "line",
+    "rect",
+    "rectRounded",
+    "rectRot",
+    "star",
+    "triangle",
+  ];
+  // This will store all of the bot ranking results
+  let data = {};
+  let color_index = 0;
+
+  Chart.defaults.font.family = "JetBrains Mono";
+
+  const chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: {},
+    options: {
+      plugins: {
+        legend: {
+          position: "bottom",
+          usePointStyle: true,
+          labels: {
+            // This more specific font property overrides the global property
+            font: {
+              size: 14,
+            },
+          },
+        },
+      },
+      responsive: true,
+      scales: {
+        x: {
+          type: "linear",
+          beginAtZero: false,
+        },
+        y: {
+          type: "linear",
+          beginAtZero: true,
+          max: 5.0,
+        },
+      },
+      animation: true,
+    },
+  });
+</script>

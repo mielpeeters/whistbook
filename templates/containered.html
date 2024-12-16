@@ -1,5 +1,6 @@
-<div id="qr" class="hidden">
-</div>
+{% extends "index.html" %}
+
+{% block contained %}
 <div class="w-full h-full flex flex-col">
   <a href="/">
     <h1
@@ -16,7 +17,9 @@
     </h1>
   </a>
   <div id="content" class="mt-8 h-full w-full">
-    {% include "main_menu.html" %}
+    {% block content %}
+    {% endblock %}
   </div>
   <div id="alert"></div>
 </div>
+{% endblock %}

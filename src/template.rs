@@ -28,6 +28,15 @@ pub struct DealFormTemplate {
 }
 
 #[derive(Template)]
+#[template(path = "game_full.html")]
+pub struct FullGameTemplate {
+    pub id: String,
+    pub game: Game,
+    pub solobids: Vec<String>,
+    pub duobids: Vec<String>,
+}
+
+#[derive(Template)]
 #[template(path = "game.html")]
 pub struct GameTemplate {
     pub id: String,
@@ -82,6 +91,10 @@ pub struct PointsTemplate {
 }
 
 #[derive(Template)]
+#[template(path = "new_game_full.html")]
+pub struct FullNewGameTemplate {}
+
+#[derive(Template)]
 #[template(path = "new_game.html")]
 pub struct NewGameTemplate {}
 
@@ -94,6 +107,12 @@ pub struct IdGame {
 #[derive(Template)]
 #[template(path = "games.html")]
 pub struct GamesTemplate {
+    pub games: Vec<IdGame>,
+}
+
+#[derive(Template)]
+#[template(path = "games_full.html")]
+pub struct FullGamesTemplate {
     pub games: Vec<IdGame>,
 }
 

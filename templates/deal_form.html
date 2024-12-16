@@ -5,12 +5,11 @@
   class="w-full flex flex-col pt-4"
 >
   <div id="step1" class="w-full">
-    <h2 class="text-neutral-800 font-medium text-lg mb-2">Wie speelde?</h2>
+    <h2 _="on load set $players to 0" class="text-neutral-800 font-medium text-lg mb-2">Wie speelde?</h2>
     <div class="form-grid four-colors">
       {% for player in game.players %}
       <div
         _="
-        on load set $players to 0
         on click 
                     toggle @checked on first <input/> in me 
                     then toggle .toggled on me
@@ -73,7 +72,7 @@
   </div>
   {% if game.players.len() > 4 -%}
   <div id="steponehalf" class="w-full hidden opacity-0">
-    <h2 class="text-neutral-800 font-medium text-lg mb-2">Tegen wie?</h2>
+    <h2 _="on load set $opps to 0" class="text-neutral-800 font-medium text-lg mb-2">Tegen wie?</h2>
     <div class="form-grid four-colors">
       {% for player in game.players %}
       <div

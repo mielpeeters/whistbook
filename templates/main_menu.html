@@ -1,0 +1,28 @@
+<div class="center-content relative">
+  <div
+    class="flex gap-8 min-h-64 max-w-52 md:max-w-96 flex-wrap justify-center"
+  >
+    <button
+      hx-get="/games"
+      hx-target="#content"
+      hx-swap="innerHTML"
+      hx-push-url="/games"
+      class="w-40 h-9 rounded-sm hover:bg-blue-50 transition-colors border-blue-800 border-2 hover:text-blue-700 font-medium text-lg px-1 hover:font-bold"
+    >
+      Speel verder
+    </button>
+    <button
+      hx-get="/new-game"
+      hx-target="#content"
+      hx-swap="innerHTML"
+      hx-push-url="/new-game"
+      class="w-40 h-9 rounded-sm hover:bg-emerald-50 transition-colors border-green-800 border-2 hover:text-green-700 font-medium text-lg px-1 hover:font-bold"
+    >
+      Nieuw spel
+    </button>
+  </div>
+  <div class="absolute bottom-12 ml-auto mr-auto !text-neutral-600 flex justify-center gap-x-4">
+    <button hx-get="/api/qr" hx-swap="outerHTML" class="button" hx-target="#qr">your id</button>
+    <button hx-get="/api/logout" class="button">logout</button>
+  </div>
+</div>

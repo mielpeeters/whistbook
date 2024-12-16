@@ -14,13 +14,13 @@
     <div id="games" class="flex flex-col gap-y-4">
       {% for game in games %}
       <div class="game grid gap-4 grid-cols-9">
-        <div class="col-span-2" hx-get="/game/{{game.id}}" hx-target="#content">
+        <div class="col-span-3 break-words hyphens-auto" hx-get="/game/{{game.id}}" hx-target="#content">
           <span
             class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]"
             >{{game.game.name}}</span
           >
         </div>
-        <div class="tiny-grid four-colors col-span-6">
+        <div class="tiny-grid four-colors col-span-5">
           {% for player in game.game.players %}
           <div
             class="border-current text-sm font-[400] rounded-sm border-2 center"
