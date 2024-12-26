@@ -1,10 +1,17 @@
 <canvas id="chart" style="z-index: 5" class="mb-4"></canvas>
 <script>
     // Select an element with the "four-colors" class
-    var fourColorsElement = document.querySelector('.four-colors');
+    var fourColorsElements = document.querySelectorAll('.four-colors');
     
     // Array to store the colors
     var colorscheme = [];
+
+    var fourColorsElement = null;
+    fourColorsElements?.forEach(element => {
+      if ([...element.children].length >= {{scores.len()}}) {
+          fourColorsElement = element;
+      }
+    });
     
     // Loop through child elements
     [...fourColorsElement?.children].forEach((child, index) => {

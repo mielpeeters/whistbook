@@ -11,9 +11,10 @@
             "
       />
     </label>
+    <div id="showChart"></div>
     <div id="games" class="flex flex-col gap-y-4">
       {% for game in games %}
-      <div class="game grid gap-4 grid-cols-9">
+      <div class="game grid gap-4 grid-cols-10">
         <div class="col-span-3 break-words hyphens-auto" hx-get="/game/{{game.id}}" hx-target="#content">
           <span
             class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]"
@@ -31,6 +32,16 @@
         </div>
         <div class="center">
           <span
+            class="cursor-pointer transition-all hover:-translate-y-1 hover:drop-shadow-md"
+            hx-get="/api/chart/{{game.id}}"
+            hx-target="#showChart"
+            hx-swap="innerHTML"
+            >
+            <img src="public/assets/chart.svg"/>
+          </span>
+        </div>
+        <div class="center">
+          <span
             class="cursor-pointer transition-all trashIcon relative"
               hx-delete="/game/{{game.id}}"
               hx-swap="outerHTML"
@@ -44,7 +55,6 @@
             class="bin transition-all"
               src="public/assets/trash.svg"
           />
-
           </span>
         </div>
       </div>
