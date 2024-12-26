@@ -11,7 +11,7 @@
             "
       />
     </label>
-    <div id="showChart"></div>
+    <div id="showChart" _="on close set my innerHTML to '' then log 'removed'"></div>
     <div id="games" class="flex flex-col gap-y-4">
       {% for game in games %}
       <div class="game grid gap-4 grid-cols-10">
@@ -36,6 +36,19 @@
             hx-get="/api/chart/{{game.id}}"
             hx-target="#showChart"
             hx-swap="innerHTML"
+            _="on load
+                set :shown to false
+            end
+            on click 
+                if :shown
+                    send 'htmx:abort' to me
+                    then send close to #showChart
+                    then log 'sent close'
+                    then set :shown to false
+                else
+                    set :shown to true
+                end
+            end"
             >
             <img src="public/assets/chart.svg"/>
           </span>
