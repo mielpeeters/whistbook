@@ -1,30 +1,22 @@
 <canvas id="chart" style="z-index: 5" class="mb-4"></canvas>
 <script>
-  // TODO: replace with tailwind colours
-  const colorscheme = [
-    "#FF572299", // Deep Orange
-    "#FFC10799", // Amber
-    "#4CAF5099", // Green
-    "#2196F399", // Blue
-    "#9C27B099", // Purple
-    "#FF980099", // Orange
-    "#00BCD499", // Cyan
-  ];
-  const pointStyle = [
-    "circle",
-    "cross",
-    "crossRot",
-    "dash",
-    "line",
-    "rect",
-    "rectRounded",
-    "rectRot",
-    "star",
-    "triangle",
-  ];
-  // This will store all of the bot ranking results
-  let data = {};
-  let color_index = 0;
+    // Select an element with the "four-colors" class
+    var fourColorsElement = document.querySelector('.four-colors');
+    
+    // Array to store the colors
+    var colorscheme = [];
+    
+    // Loop through child elements
+    [...fourColorsElement?.children].forEach((child, index) => {
+      // Get the computed style of the child element
+      var style = getComputedStyle(child);
+      
+      // Fetch the `color` property
+      var color = style.getPropertyValue('color');
+      
+      // Add the color to the array
+      if (color) colorscheme.push(color.trim());
+    });
 
   Chart.defaults.font.family = "JetBrains Mono";
 
@@ -34,14 +26,7 @@
     options: {
       plugins: {
         legend: {
-          position: "bottom",
-          usePointStyle: true,
-          labels: {
-            // This more specific font property overrides the global property
-            font: {
-              size: 14,
-            },
-          },
+          display: false,
         },
       },
       responsive: true,
@@ -53,10 +38,24 @@
         y: {
           type: "linear",
           beginAtZero: true,
-          max: 5.0,
         },
       },
       animation: true,
     },
   });
+
+
+  chart.data.datasets = [
+      {%- for i in 0..scores.len() -%}
+      { 
+          label: "{{scores[i].name}}", 
+          data: {{"{:?}"|format(scores[i].scores)}}, 
+          backgroundColor: colorscheme[{{i}} % colorscheme.length],
+          borderColor: colorscheme[{{i}} % colorscheme.length]
+      },
+      {% endfor %}
+  ];
+
+  chart.data.labels = [...Array(chart.data.datasets[0].data.length).keys()];
+  chart.update();
 </script>

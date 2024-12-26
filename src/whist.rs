@@ -209,7 +209,7 @@ impl Bid {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Points(Vec<i16>);
+pub struct Points(pub Vec<i16>);
 
 impl Points {
     fn new(num_players: usize) -> Self {

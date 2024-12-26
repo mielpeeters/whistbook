@@ -4,7 +4,9 @@
   {% call scrs::scores(players, scores, "") %}
 </div>
 
+
 <div id="newRound" class="h-full flex flex-col justify-center gap-y-8">
+  <div hx-get="/api/chart/{{id}}" hx-swap="innerHTML" hx-trigger="load"></div>
   <div id="roundScores">{% call scrs::scores(players, points, "Ronde") %}</div>
   <div
     class="button center text-lg mb-8"

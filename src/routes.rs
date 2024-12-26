@@ -26,9 +26,9 @@ use crate::db::{
 use crate::embed::StaticFile;
 use crate::error::Error;
 use crate::template::{
-    AlertTemplate, DealFormTemplate, FullGameTemplate, FullGamesTemplate, FullNewGameTemplate,
-    GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate, LoginActions, LoginTemplate,
-    MainTemplate, NewGameTemplate, PointsTemplate, Svg,
+    AlertTemplate, Chart, ChartScore, DealFormTemplate, FullGameTemplate, FullGamesTemplate,
+    FullNewGameTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate, LoginActions,
+    LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate, Svg,
 };
 use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
 use crate::Db;
@@ -126,6 +126,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/api/new-game", post(new_game))
         .route("/api/check-email", post(check_email))
         .route("/public/*file", get(static_handler))
+        .route("/api/chart/:game_id", get(chart))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .with_state(app_state);
@@ -599,6 +600,38 @@ pub async fn user_qr(
             .unwrap();
 
             Ok(HtmlTemplate(Svg { svg }))
+        },
+        { Err(AlertTemplate::unauthorized()) }
+    )
+}
+
+pub async fn chart(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            let game = db::get_game(db.clone(), token.user.clone(), game_id.clone()).await?;
+
+            let mut scores = vec![];
+
+            for player in &game.players {
+                scores.push(ChartScore {
+                    name: player.clone(),
+                    scores: vec![],
+                });
+            }
+
+            for points in game.scores {
+                for (player, point) in points.0.iter().enumerate() {
+                    scores[player].scores.push(*point);
+                }
+            }
+
+            Ok(HtmlTemplate(Chart { scores }))
         },
         { Err(AlertTemplate::unauthorized()) }
     )

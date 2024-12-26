@@ -128,6 +128,17 @@ pub struct Svg {
     pub svg: String,
 }
 
+pub struct ChartScore {
+    pub name: String,
+    pub scores: Vec<i16>,
+}
+
+#[derive(Template)]
+#[template(path = "chart.html")]
+pub struct Chart {
+    pub scores: Vec<ChartScore>,
+}
+
 // Turns askama templates into responses that can be handled by server
 pub struct HtmlTemplate<T>(pub T);
 

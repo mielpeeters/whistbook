@@ -18,3 +18,6 @@ watch:
 
 watch-release:
   cargo watch -w templates -w src -w styles -- just watch-command-release
+
+db: 
+  docker compose up -d surrealdb
