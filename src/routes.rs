@@ -18,19 +18,12 @@ use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 
-use crate::auth::{create_token, verify_token};
-use crate::db::{
-    self, delete_game_by_id, email_exists, get_game, get_game_by_id, get_games_with_ids, save_game,
-    set_login, start_game,
-};
+use crate::auth;
+use crate::db;
 use crate::embed::StaticFile;
 use crate::error::Error;
-use crate::template::{
-    AlertTemplate, Chart, ChartScore, DealFormTemplate, FullGameTemplate, FullGamesTemplate,
-    FullNewGameTemplate, GameTemplate, GamesTemplate, HtmlTemplate, IndexTemplate, LoginActions,
-    LoginTemplate, MainTemplate, NewGameTemplate, PointsTemplate, Svg,
-};
-use crate::whist::{duo_bids, solo_bids, Bid, Deal, Players, Team};
+use crate::template::*;
+use crate::whist::*;
 use crate::Db;
 
 macro_rules! auth {
@@ -38,7 +31,7 @@ macro_rules! auth {
         #[allow(unused)]
         if let Some(Ok($token)) = $jar
             .get("token")
-            .and_then(|t| Some(verify_token(t.value())))
+            .and_then(|t| Some(auth::verify_token(t.value())))
         {
             $block
         } else {
@@ -50,7 +43,7 @@ macro_rules! auth {
         #[allow(unused)]
         if let Some(Ok($token)) = $jar
             .get("token")
-            .and_then(|t| Some(verify_token(t.value())))
+            .and_then(|t| Some(auth::verify_token(t.value())))
         {
             $block
         } else {
@@ -195,7 +188,7 @@ async fn register(
     }
 
     // use the index on the login table as a check to see if this login already exists!
-    let res = set_login(state.0.clone(), &login.0.email, &login.0.password).await;
+    let res = db::set_login(state.0.clone(), &login.0.email, &login.0.password).await;
 
     if let Err(Error::LoginErr(e)) = res {
         let message = e.to_string();
@@ -225,10 +218,10 @@ async fn check_credentials(
         });
     }
 
-    let check = crate::db::check_login(db.clone(), &login.email, &login.password).await?;
+    let check = db::check_login(db.clone(), &login.email, &login.password).await?;
 
     if check {
-        let token = create_token(login.email).map_err(|_| AlertTemplate {
+        let token = auth::create_token(login.email).map_err(|_| AlertTemplate {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             alert: "int serv err".into(),
         })?;
@@ -279,7 +272,7 @@ async fn deal(
                 }
             }
 
-            let mut current_game = get_game(db.clone(), token.user.clone(), game_id.clone())
+            let mut current_game = db::get_game(db.clone(), token.user.clone(), game_id.clone())
                 .await
                 .unwrap();
 
@@ -345,7 +338,7 @@ async fn deal(
             let players = current_game.players.clone();
             let scores = current_game.scores.last().unwrap().clone();
 
-            save_game(
+            db::save_game(
                 db.clone(),
                 token.user.clone(),
                 game_id.clone(),
@@ -436,7 +429,7 @@ pub async fn new_game(
             players.opt_add_player(&form.player6);
             players.opt_add_player(&form.player7);
 
-            let (id, game) = start_game(db.clone(), form.name, players)
+            let (id, game) = db::start_game(db.clone(), form.name, players)
                 .await
                 .map_err(|e| e.into_alert())?;
 
@@ -489,7 +482,7 @@ pub async fn deal_form(
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     auth!(jar, token, {
-        let game = get_game(db, token.user, game_id.clone()).await.unwrap();
+        let game = db::get_game(db, token.user, game_id.clone()).await.unwrap();
 
         Ok(HtmlTemplate(DealFormTemplate {
             id: game_id,
@@ -506,7 +499,7 @@ pub async fn games(
     jar: CookieJar,
 ) -> Result<Response, impl IntoResponse> {
     auth!(jar, token, {
-        let games = get_games_with_ids(db, token.user)
+        let games = db::get_games_with_ids(db, token.user)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -526,7 +519,7 @@ pub async fn game(
     jar: CookieJar,
 ) -> Result<Response, impl IntoResponse> {
     auth!(jar, token, {
-        let game = get_game_by_id(db, token.user, game_id.clone())
+        let game = db::get_game_by_id(db, token.user, game_id.clone())
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -557,10 +550,13 @@ pub async fn delete_game(
     jar: CookieJar,
 ) -> Result<impl IntoResponse, impl IntoResponse> {
     auth!(jar, token, {
-        delete_game_by_id(db, token.user, game_id.clone())
+        let my_id = db::get_user_id(db.clone(), token.user.clone())
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+        db::remove_player(db.clone(), game_id.clone(), my_id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(StatusCode::OK)
     })
 }
@@ -575,7 +571,7 @@ pub async fn check_email(
     Form(email): Form<Email>,
 ) -> Result<HtmlTemplate<LoginActions>, AlertTemplate> {
     Ok(HtmlTemplate(LoginActions {
-        exists: email_exists(db, email.email).await?,
+        exists: db::email_exists(db, email.email).await?,
     }))
 }
 

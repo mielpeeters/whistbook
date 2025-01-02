@@ -205,6 +205,20 @@ pub async fn add_player(
     Ok(())
 }
 
+pub async fn remove_player(db: Db, game_id: String, user_id: String) -> Result<(), Error> {
+    query!(
+        r#"
+        LET $login = type::thing("login", $user_id);
+        LET $game = type::thing("game", $game_id);
+        DELETE $login->plays WHERE out == $game;
+        "#,
+        db,
+        user_id,
+        game_id,
+    );
+    Ok(())
+}
+
 pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
     query!(
         r#"
@@ -218,6 +232,17 @@ pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<
         game,
     );
     Ok(())
+}
+
+/// Returns the amount of players in a game, defined by the plays relation
+pub async fn num_players(db: Db, game_id: String) -> Result<usize, Error> {
+    let count: Option<usize> = select!(
+        r#"RETURN COUNT(SELECT * FROM plays WHERE ->game.id.first().id() == $gameid)"#,
+        db,
+        game_id
+    );
+
+    count.ok_or(Error::NoGameError)
 }
 
 pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
