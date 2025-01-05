@@ -9,6 +9,8 @@ services:
       - 31313:8000
     volumes:
       - ./data:/data
+    networks:
+      - whist
 
   whistbook:
     container_name: whistbook
@@ -21,3 +23,13 @@ services:
     command: ./target/release/whistbook
     depends_on:
       - surrealdb
+    networks:
+      - caddy
+      - whist
+
+networks:
+  caddy:
+    external: true
+  whist:
+    name: whist
+    driver: bridge
