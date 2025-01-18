@@ -1,6 +1,7 @@
 alias w := watch
 alias wr := watch-release
 
+
 watch-command: tailwind
   cargo run
 
