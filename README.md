@@ -1,1 +1,1 @@
-![](logo.png)
+<img src="logo/logo.png" width="100px"/>
