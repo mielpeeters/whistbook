@@ -1,10 +1,12 @@
 <p align="center">
   <img src="logo/logo.png" width="100px"/>
-  <h1 align="center">WhistBook</h1>
 </p>
 
 WhistBook is a webapplication for keeping track of scores of a colour whist game.
+
 You can visit the application at [whist.mielpeeters.be](https://whist.mielpeeters.be).
+
+<img src="public/assets/whistbook-demo.gif" width="100%"/>
 
 # Features
 - creating whist games with 4 to 7 players
