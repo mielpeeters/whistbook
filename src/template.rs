@@ -139,6 +139,33 @@ pub struct Chart {
     pub scores: Vec<ChartScore>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct LinkedPlayer {
+    pub alias: String,
+    pub email: String,
+}
+
+pub struct PlayerLinkStatus {
+    pub name: String,
+    pub linked: bool,
+}
+
+#[derive(Template)]
+#[template(path = "game_settings.html")]
+pub struct GameSettingsTemplate {
+    pub id: String,
+    pub game_name: String,
+    pub player_links: Vec<PlayerLinkStatus>,
+}
+
+#[derive(Template)]
+#[template(path = "game_settings_full.html")]
+pub struct FullGameSettingsTemplate {
+    pub id: String,
+    pub game_name: String,
+    pub player_links: Vec<PlayerLinkStatus>,
+}
+
 // Turns askama templates into responses that can be handled by server
 pub struct HtmlTemplate<T>(pub T);
 

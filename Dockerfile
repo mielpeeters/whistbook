@@ -20,7 +20,7 @@ RUN cargo build --release
 RUN mv ./target/release/whistbook ./app
 
 FROM debian:stable-slim AS runtime
-RUN apt-get update && apt-get install libssl3 libssl-dev
+RUN apt-get update && apt-get install -y libssl3 libssl-dev
 WORKDIR /app
 COPY .env ./.env
 COPY --from=builder /app/app /usr/local/bin/

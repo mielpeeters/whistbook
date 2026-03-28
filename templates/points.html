@@ -8,13 +8,24 @@
 <div id="newRound" class="h-full flex flex-col justify-center gap-y-8">
   <div hx-get="/api/chart/{{id}}" hx-swap="innerHTML" hx-trigger="load"></div>
   <div id="roundScores">{% call scrs::scores(players, points, "Ronde") %}</div>
-  <div
-    class="button center text-lg mb-8"
-    hx-get="/form/{{id}}"
-    hx-target="#newRound"
-    hx-swap="outerHTML"
-    _="on click set $players to 0"
-  >
-    nieuwe ronde
+  <div class="flex gap-4 mb-8">
+    <div
+      class="button center text-lg flex-1"
+      hx-get="/form/{{id}}"
+      hx-target="#newRound"
+      hx-swap="outerHTML"
+      _="on click set $players to 0"
+    >
+      nieuwe ronde
+    </div>
+    <div
+      class="button center text-lg"
+      hx-post="/api/undo/{{id}}"
+      hx-target="#content"
+      hx-swap="innerHTML"
+      hx-confirm="Laatste ronde ongedaan maken?"
+    >
+      ↩
+    </div>
   </div>
 </div>

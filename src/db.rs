@@ -1,5 +1,5 @@
 use crate::error::{Error, LoginErr};
-use crate::template::IdGame;
+use crate::template::{IdGame, LinkedPlayer};
 use crate::whist::{Game, Players};
 use crate::{auth, Db};
 
@@ -302,6 +302,23 @@ pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), 
     );
 
     Ok(())
+}
+
+pub async fn get_game_players(
+    db: Db,
+    game_id: String,
+) -> Result<Vec<LinkedPlayer>, Error> {
+    let players: Vec<LinkedPlayer> = select!(
+        r#"
+        SELECT alias, in.email as email
+        FROM plays
+        WHERE out == type::thing("game", $game_id);
+        "#,
+        db,
+        game_id
+    );
+
+    Ok(players)
 }
 
 pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {

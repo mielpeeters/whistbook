@@ -243,7 +243,7 @@ impl IndexMut<usize> for Points {
 
 impl AddAssign for Points {
     fn add_assign(&mut self, rhs: Self) {
-        (0..4).for_each(|i| self.0[i] += rhs.0[i])
+        (0..self.0.len()).for_each(|i| self.0[i] += rhs.0[i])
     }
 }
 
@@ -422,6 +422,15 @@ impl Game {
             scores: vec![Points::new(players.len())],
             players,
             deals: vec![],
+        }
+    }
+
+    pub fn undo_deal(&mut self) -> Option<Deal> {
+        if let Some(deal) = self.deals.pop() {
+            self.scores.pop();
+            Some(deal)
+        } else {
+            None
         }
     }
 

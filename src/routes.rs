@@ -65,15 +65,12 @@ impl KeyExtractor for RateLimitToken {
     type Key = String;
 
     fn extract<B>(&self, req: &http::request::Request<B>) -> Result<Self::Key, GovernorError> {
-        req.headers()
+        Ok(req
+            .headers()
             .get("x-forwarded-for")
             .and_then(|token| token.to_str().ok())
             .map(|token| token.trim().to_owned())
-            .ok_or(GovernorError::Other {
-                code: StatusCode::UNAUTHORIZED,
-                msg: Some("You don't have permission to access".to_string()),
-                headers: None,
-            })
+            .unwrap_or_else(|| "direct".to_owned()))
     }
 }
 
@@ -115,6 +112,9 @@ pub async fn router(app_state: Db) -> Router {
         .route("/game/:game_id", get(game))
         .route("/game/:game_id", delete(delete_game))
         .route("/api/deal/:game_id", post(deal))
+        .route("/api/undo/:game_id", post(undo))
+        .route("/game/:game_id/settings", get(game_settings))
+        .route("/api/game/:game_id/link-player", post(link_player))
         .route("/new-game", get(new_game_form))
         .route("/api/new-game", post(new_game))
         .route("/api/check-email", post(check_email))
@@ -363,6 +363,47 @@ async fn deal(
     )
 }
 
+async fn undo(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            let mut current_game =
+                db::get_game(db.clone(), token.user.clone(), game_id.clone()).await?;
+
+            if current_game.undo_deal().is_none() {
+                return Err(AlertTemplate::bad_request("Geen rondes om ongedaan te maken"));
+            }
+
+            db::save_game(
+                db.clone(),
+                token.user.clone(),
+                game_id.clone(),
+                current_game.clone(),
+            )
+            .await
+            .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            Ok(HtmlTemplate(GameTemplate {
+                id: game_id,
+                game: current_game,
+                solobids: solo_bids(),
+                duobids: duo_bids(),
+            }))
+        },
+        {
+            Err(AlertTemplate {
+                code: StatusCode::UNAUTHORIZED,
+                alert: "Unauthorized".into(),
+            })
+        }
+    )
+}
+
 pub async fn new_game_form(
     headers: HeaderMap,
     jar: CookieJar,
@@ -596,6 +637,107 @@ pub async fn user_qr(
             .unwrap();
 
             Ok(HtmlTemplate(Svg { svg }))
+        },
+        { Err(AlertTemplate::unauthorized()) }
+    )
+}
+
+pub async fn game_settings(
+    headers: HeaderMap,
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+) -> Result<Response, impl IntoResponse> {
+    auth!(jar, token, {
+        let game = db::get_game_by_id(db.clone(), token.user.clone(), game_id.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let linked_players = db::get_game_players(db.clone(), game_id.clone())
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let player_links: Vec<PlayerLinkStatus> = game
+            .players
+            .into_iter()
+            .map(|name| {
+                let linked = linked_players.iter().any(|lp| lp.alias == *name);
+                PlayerLinkStatus {
+                    name: name.clone(),
+                    linked,
+                }
+            })
+            .collect();
+
+        if !headers.contains_key("HX-Request") {
+            return Ok(HtmlTemplate(FullGameSettingsTemplate {
+                id: game_id,
+                game_name: game.name,
+                player_links,
+            })
+            .into_response());
+        }
+
+        Ok(HtmlTemplate(GameSettingsTemplate {
+            id: game_id,
+            game_name: game.name,
+            player_links,
+        })
+        .into_response())
+    })
+}
+
+#[derive(Deserialize)]
+pub struct LinkPlayerForm {
+    user_id: String,
+    player_name: String,
+}
+
+pub async fn link_player(
+    State(db): State<Db>,
+    Path(game_id): Path<String>,
+    jar: CookieJar,
+    Form(form): Form<LinkPlayerForm>,
+) -> Result<Response, AlertTemplate> {
+    auth!(
+        jar,
+        token,
+        {
+            db::add_player(
+                db.clone(),
+                game_id.clone(),
+                form.user_id,
+                form.player_name,
+            )
+            .await
+            .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let game = db::get_game_by_id(db.clone(), token.user.clone(), game_id.clone())
+                .await
+                .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let linked_players = db::get_game_players(db.clone(), game_id.clone())
+                .await
+                .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let player_links: Vec<PlayerLinkStatus> = game
+                .players
+                .into_iter()
+                .map(|name| {
+                    let linked = linked_players.iter().any(|lp| lp.alias == *name);
+                    PlayerLinkStatus {
+                        name: name.clone(),
+                        linked,
+                    }
+                })
+                .collect();
+
+            Ok(HtmlTemplate(GameSettingsTemplate {
+                id: game_id,
+                game_name: game.name,
+                player_links,
+            })
+            .into_response())
         },
         { Err(AlertTemplate::unauthorized()) }
     )

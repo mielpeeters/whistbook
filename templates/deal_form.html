@@ -9,9 +9,10 @@
     <div class="form-grid four-colors">
       {% for player in game.players %}
       <div
+        data-player="{{loop.index0}}"
         _="
-        on click 
-                    toggle @checked on first <input/> in me 
+        on click
+                    toggle @checked on first <input/> in me
                     then toggle .toggled on me
                     then if I match .toggled
                         increment $players
@@ -22,7 +23,7 @@
                         remove .hidden from #next1
                         then transition #next1's opacity to 1 over 100ms
                     else
-                        transition #next1's opacity to 0 over 100ms 
+                        transition #next1's opacity to 0 over 100ms
                         then add .hidden to #next1
                     end
                     "
@@ -38,10 +39,16 @@
       type="button"
       id="next1"
       _="
-                on click 
+                on click
                 transition #step1's opacity to 0 over 250ms
-                then add .hidden to #step1 
+                then add .hidden to #step1
                 then remove .hidden from #steponehalf
+                then for div in <div.toggled/> in #step1
+                  set idx to div's @data-player
+                  set target to first <div[data-player='${idx}']/> in #steponehalf
+                  add .opacity-50 to target
+                  add .pointer-events-none to target
+                end
                 then transition #steponehalf's opacity to 1 over 250ms
                 "
       class="button center mt-12 ml-auto hidden opacity-0"
@@ -76,10 +83,12 @@
     <div class="form-grid four-colors">
       {% for player in game.players %}
       <div
+        data-player="{{loop.index0}}"
         _="
         on load set $opps to 0 end
-        on click 
-                    toggle @checked on first <input/> in me 
+        on click
+                    if I match .opacity-50 then halt end
+                    toggle @checked on first <input/> in me
                     then toggle .toggled on me
                     then if I match .toggled
                         increment $opps
@@ -90,7 +99,7 @@
                         remove .hidden from #nextonehalf
                         then transition #nextonehalf's opacity to 1 over 100ms
                     else
-                        transition #nextonehalf's opacity to 0 over 100ms 
+                        transition #nextonehalf's opacity to 0 over 100ms
                         then add .hidden to #nextonehalf
                     end
                     "
