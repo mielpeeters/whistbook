@@ -9,8 +9,6 @@ services:
       - 31313:8000
     volumes:
       - ./data:/data
-    networks:
-      - whist
 
   whistbook:
     container_name: whistbook
@@ -22,13 +20,3 @@ services:
     restart: unless-stopped
     depends_on:
       - surrealdb
-    networks:
-      - caddy
-      - whist
-
-networks:
-  caddy:
-    external: true
-  whist:
-    name: whist
-    driver: bridge
