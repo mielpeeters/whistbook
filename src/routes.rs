@@ -178,6 +178,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/api/undo/:game_id", post(undo))
         .route("/game/:game_id/settings", get(game_settings))
         .route("/api/game/:game_id/link-player", post(link_player))
+        .route("/leaderboard", get(leaderboard_page))
         .route("/new-game", get(new_game_form))
         .route("/api/new-game", post(new_game))
         .route("/api/check-email", post(check_email))
@@ -272,18 +273,34 @@ async fn register(
 }
 
 async fn main_page(db: Db, email: &str) -> axum::http::Response<axum::body::Body> {
-    let leaderboard = db::get_ratings(db.clone())
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(e, r)| LeaderboardEntry { email: e, rating: r })
-        .collect::<Vec<_>>();
-    let rating = leaderboard
+    let ratings = db::get_ratings(db.clone()).await.unwrap_or_default();
+    let rating = ratings
         .iter()
-        .find(|e| e.email == email)
-        .map(|e| e.rating)
+        .find(|(e, _)| e == email)
+        .map(|(_, r)| *r)
         .unwrap_or(crate::rating::DEFAULT_RATING);
-    HtmlTemplate(MainTemplate { rating, leaderboard }).into_response()
+    HtmlTemplate(MainTemplate { rating }).into_response()
+}
+
+async fn leaderboard_page(
+    headers: HeaderMap,
+    State(db): State<Db>,
+    jar: CookieJar,
+) -> Result<Response, impl IntoResponse> {
+    auth!(jar, _token, {
+        let leaderboard = db::get_ratings(db)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(email, rating)| LeaderboardEntry { email, rating })
+            .collect::<Vec<_>>();
+
+        if !headers.contains_key("HX-Request") {
+            return Ok(HtmlTemplate(FullLeaderboardTemplate { leaderboard }).into_response());
+        }
+
+        Ok(HtmlTemplate(LeaderboardTemplate { leaderboard }).into_response())
+    })
 }
 
 async fn check_credentials(

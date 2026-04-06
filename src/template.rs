@@ -23,6 +23,17 @@ pub struct LeaderboardEntry {
 #[template(path = "main.html")]
 pub struct MainTemplate {
     pub rating: i32,
+}
+
+#[derive(Template)]
+#[template(path = "leaderboard.html")]
+pub struct LeaderboardTemplate {
+    pub leaderboard: Vec<LeaderboardEntry>,
+}
+
+#[derive(Template)]
+#[template(path = "leaderboard_full.html")]
+pub struct FullLeaderboardTemplate {
     pub leaderboard: Vec<LeaderboardEntry>,
 }
 

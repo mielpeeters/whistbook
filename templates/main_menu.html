@@ -25,17 +25,16 @@
       >
         Nieuw spel
       </button>
+      <button
+        hx-get="/leaderboard"
+        hx-target="#content"
+        hx-swap="innerHTML"
+        hx-push-url="/leaderboard"
+        class="w-40 h-9 rounded-sm hover:bg-neutral-50 transition-colors border-neutral-400 border-2 hover:text-neutral-700 font-medium text-lg px-1 hover:font-bold"
+      >
+        Leaderboard
+      </button>
     </div>
-    {% if !leaderboard.is_empty() %}
-    <div class="flex flex-col w-full mt-2 gap-1">
-      {% for entry in leaderboard %}
-      <div class="flex justify-between text-sm py-1 border-b border-neutral-100 last:border-0">
-        <span class="text-neutral-600">{{ entry.email }}</span>
-        <span class="font-medium text-green-800">{{ entry.rating }}</span>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
   </div>
   <div
     class="absolute bottom-24 ml-auto mr-auto !text-neutral-600 flex justify-center gap-x-4"
