@@ -1,8 +1,31 @@
-@import url('https://fonts.cdnfonts.com/css/jetbrains-mono-2');
+@import url('https://fonts.cdnfonts.com/css/jetbrains-mono-2') layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: Inter var, ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-mono: JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 .toggled {
   @apply bg-neutral-200;
@@ -31,17 +54,17 @@
 }
 
 .login-input {
-  @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
+  @apply rounded-xs border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-hidden text-neutral-700;
   @apply px-2 w-full;
 }
 
 .text-input {
-  @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
+  @apply rounded-xs border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-hidden text-neutral-700;
   @apply px-2;
 }
 
 .text-input-small {
-  @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors focus:border-blue-800 outline-none text-neutral-700;
+  @apply rounded-xs border-neutral-800 border-2 hover:bg-neutral-100 transition-colors focus:border-blue-800 outline-hidden text-neutral-700;
   @apply px-2;
 }
 
@@ -59,20 +82,20 @@
 }
 
 .button {
-  @apply border-current border-2 rounded-sm transition-all duration-150 active:border-blue-800 outline-none text-neutral-800;
+  @apply border-current border-2 rounded-xs transition-all duration-150 active:border-blue-800 outline-hidden text-neutral-800;
   @apply px-2 cursor-pointer;
-  @apply hover:-translate-y-[1px];
+  @apply hover:-translate-y-px;
   @apply underline decoration-transparent decoration-2;
   @apply hover:decoration-current;
   @apply select-none;
 }
 
-.center {
+@utility center {
   @apply flex justify-center items-center;
 }
 
 .alert {
-  @apply border-orange-600 border-2 rounded-sm center text-wrap text-orange-600 font-medium;
+  @apply border-orange-600 border-2 rounded-xs center text-wrap text-orange-600 font-medium;
 }
 
 .form-grid {

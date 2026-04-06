@@ -16,7 +16,7 @@
       <div class="gameson">
         <div class="game grid gap-4 grid-cols-10">
           <div
-            class="col-span-3 break-words hyphens-auto"
+            class="col-span-3 wrap-break-word hyphens-auto"
             hx-get="/game/{{game.id}}"
             hx-target="#content"
           >
@@ -28,7 +28,7 @@
           <div class="tiny-grid four-colors col-span-5">
             {% for player in game.game.players %}
             <div
-              class="border-current text-sm font-[400] rounded-sm border-2 center"
+              class="border-current text-sm font-normal rounded-xs border-2 center"
             >
               {{player}}
             </div>
