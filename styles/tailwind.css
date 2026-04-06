@@ -9,6 +9,27 @@
   @apply underline decoration-2;
 }
 
+.gameson {
+  padding: 8px;
+  border-radius: 5px;
+  background: white;
+  transition: background 0.2s ease;
+}
+
+.gameson:has(.chart.open) {
+  background: #f4f4f4;
+}
+
+.chart {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.chart.open {
+  max-height: 500px; /* set higher than content will ever be */
+}
+
 .login-input {
   @apply rounded-sm border-neutral-800 border-2 hover:bg-neutral-100 transition-colors text-lg focus:border-blue-800 outline-none text-neutral-700;
   @apply px-2 w-full;
@@ -112,7 +133,7 @@
     transform: translateY(-7px) rotate(15deg);
     @apply drop-shadow-md;
   }
-  
+
   .bin {
     transform: translateY(-2px) rotate(10deg);
     @apply drop-shadow-md;
@@ -143,6 +164,6 @@
 }
 
 .hiddenAF {
-    visibility: hidden;
-    pointer-events: none;
+  visibility: hidden;
+  pointer-events: none;
 }

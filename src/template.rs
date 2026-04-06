@@ -136,6 +136,7 @@ pub struct ChartScore {
 #[derive(Template)]
 #[template(path = "chart.html")]
 pub struct Chart {
+    pub game_id: String,
     pub scores: Vec<ChartScore>,
 }
 

@@ -1,8 +1,10 @@
-<canvas id="chart" style="z-index: 5" class="mb-4"></canvas>
+<div style="display: flex; justify-content: center">
+  <canvas id="chart{{game_id}}" style="z-index: 5" class="mt-4"></canvas>
+</div>
 <script>
     // Select an element with the "four-colors" class
     var fourColorsElements = document.querySelectorAll('.four-colors');
-    
+
     // Array to store the colors
     var colorscheme = [];
 
@@ -12,22 +14,22 @@
           fourColorsElement = element;
       }
     });
-    
+
     // Loop through child elements
     [...fourColorsElement?.children].forEach((child, index) => {
       // Get the computed style of the child element
       var style = getComputedStyle(child);
-      
+
       // Fetch the `color` property
       var color = style.getPropertyValue('color');
-      
+
       // Add the color to the array
       if (color) colorscheme.push(color.trim());
     });
 
   Chart.defaults.font.family = "JetBrains Mono";
 
-  var chart = new Chart(document.getElementById("chart"), {
+    var chart = new Chart(document.getElementById("chart{{game_id}}"), {
     type: "line",
     data: {},
     options: {
@@ -47,16 +49,16 @@
           beginAtZero: true,
         },
       },
-      animation: true,
+      animation: false,
     },
   });
 
 
   chart.data.datasets = [
       {%- for i in 0..scores.len() -%}
-      { 
-          label: "{{scores[i].name}}", 
-          data: {{"{:?}"|format(scores[i].scores)}}, 
+      {
+          label: "{{scores[i].name}}",
+          data: {{"{:?}"|format(scores[i].scores)}},
           backgroundColor: colorscheme[{{i}} % colorscheme.length],
           borderColor: colorscheme[{{i}} % colorscheme.length]
       },

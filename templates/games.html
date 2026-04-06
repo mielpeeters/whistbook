@@ -1,6 +1,6 @@
 <div class="center-content">
   <div class="flex flex-col w-full h-full md:h-auto">
-    <label class="text-input-label h-20 ml-auto mr-auto md:ml-0">
+    <label class="text-input-label h-20 ml-auto mr-auto md:ml-0 mb-8">
       <h2 class="text-input-label">zoek</h2>
       <input
         type="text"
@@ -11,65 +11,80 @@
             "
       />
     </label>
-    <div id="showChart" _="on close set my innerHTML to '' then log 'removed'"></div>
-    <div id="games" class="flex flex-col gap-y-4">
+    <div id="games" class="flex flex-col gap-y-6">
       {% for game in games %}
-      <div class="game grid gap-4 grid-cols-10">
-        <div class="col-span-3 break-words hyphens-auto" hx-get="/game/{{game.id}}" hx-target="#content">
-          <span
-            class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]"
-            >{{game.game.name}}</span
-          >
-        </div>
-        <div class="tiny-grid four-colors col-span-5">
-          {% for player in game.game.players %}
+      <div class="gameson">
+        <div class="game grid gap-4 grid-cols-10">
           <div
-            class="border-current text-sm font-[400] rounded-sm border-2 center"
+            class="col-span-3 break-words hyphens-auto"
+            hx-get="/game/{{game.id}}"
+            hx-target="#content"
           >
-            {{player}}
-          </div>
-          {% endfor %}
-        </div>
-        <div class="center">
-          <span
-            class="cursor-pointer transition-all hover:-translate-y-1 hover:drop-shadow-md"
-            hx-get="/api/chart/{{game.id}}"
-            hx-target="#showChart"
-            hx-swap="innerHTML"
-            _="on load
-                set :shown to false
-            end
-            on click 
-                if :shown
-                    send 'htmx:abort' to me
-                    then send close to #showChart
-                    then log 'sent close'
-                    then set :shown to false
-                else
-                    set :shown to true
-                end
-            end"
+            <span
+              class="underline decoration-transparent hover:decoration-current decoration-2 transition-all duration-200 cursor-pointer hover:font-[700] font-[600]"
+              >{{game.game.name}}</span
             >
-            <img src="public/assets/chart.svg"/>
-          </span>
-        </div>
-        <div class="center">
-          <span
-            class="cursor-pointer transition-all trashIcon relative"
+          </div>
+          <div class="tiny-grid four-colors col-span-5">
+            {% for player in game.game.players %}
+            <div
+              class="border-current text-sm font-[400] rounded-sm border-2 center"
+            >
+              {{player}}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="center">
+            <span
+              class="cursor-pointer transition-all hover:-translate-y-1 hover:drop-shadow-md"
+              hx-get="/api/chart/{{game.id}}"
+              hx-target="#showChart{{game.id}}"
+              hx-swap="innerHTML"
+              _="on load
+                    set :shown to false
+                 end
+                 on click 
+                    if :shown
+                        send 'htmx:abort' to me
+                        then send close to #showChart{{game.id}}
+                        then set :shown to false
+                    else
+                        send open to #showChart{{game.id}}
+                        then set :shown to true
+                    end
+                 end"
+            >
+              <img src="public/assets/chart.svg" />
+            </span>
+          </div>
+          <div class="center">
+            <span
+              class="cursor-pointer transition-all trashIcon relative"
               hx-delete="/game/{{game.id}}"
               hx-swap="outerHTML"
               hx-target="closest div.game"
               hx-confirm="Are you sure you want to delete the {{game.game.name}} game?"
             >
-            <img
-            class="lid transition-all absolute"
-              src="public/assets/lid.svg"
-          /><img
-            class="bin transition-all"
-              src="public/assets/trash.svg"
-          />
-          </span>
+              <img
+                class="lid transition-all absolute"
+                src="public/assets/lid.svg"
+              /><img class="bin transition-all" src="public/assets/trash.svg" />
+            </span>
+          </div>
         </div>
+        <div
+          id="showChart{{game.id}}"
+          class="chart"
+          _="on close 
+                remove .open from me 
+                then wait 300ms
+                then set my innerHTML to ''
+             on open
+                add .open to me
+             on htmx:afterSwap
+                transition my opacity to 1 over 200ms
+             "
+        ></div>
       </div>
       {% endfor %}
     </div>

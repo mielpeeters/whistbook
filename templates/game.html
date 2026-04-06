@@ -2,7 +2,32 @@
 <div class="center-content">
   <div class="flex flex-col w-full h-full md:h-auto">
     <div class="flex items-center justify-between h-20 w-full">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mb-8 w-full">
+        <h2 class="font-medium text-xl text-neutral-800">{{ game.name }}</h2>
+        <div class="flex-1"></div>
+        <a
+          hx-get="/game/{{id}}/settings"
+          hx-target="#content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="cursor-pointer button center px-3 py-1"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-3 h-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
+            />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </a>
         {% if game.deals.len() > 0 %}
         <div
           class="button center text-sm px-3 py-1"
@@ -11,28 +36,29 @@
           hx-swap="innerHTML"
           hx-confirm="Laatste ronde ongedaan maken?"
         >
-          ↩
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="w-3 h-3"
+          >
+            <path d="M9 14 4 9l5-5" />
+            <path
+              d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"
+            />
+          </svg>
         </div>
         {% endif %}
       </div>
-      <div class="flex items-center gap-2">
-        <h2 class="font-medium text-xl text-neutral-800">
-          {{ game.name }}
-        </h2>
-        <a
-          hx-get="/game/{{id}}/settings"
-          hx-target="#content"
-          hx-swap="innerHTML"
-          hx-push-url="true"
-          class="cursor-pointer text-neutral-500 hover:text-neutral-800"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-          </svg>
-        </a>
-      </div>
     </div>
-    <div id="gameScores" class="{%- if game.players.len() > 4 -%} h-28 {%- else -%} h-20 {%- endif %} -mt-8">
+    <div
+      id="gameScores"
+      class="{%- if game.players.len() > 4 -%} h-28 {%- else -%} h-20 {%- endif %} -mt-8"
+    >
       {% call scrs::scores(game.players, game.last_score(), "") %}
     </div>
     {% include "deal_form.html" %}

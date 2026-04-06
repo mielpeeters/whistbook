@@ -376,7 +376,9 @@ async fn undo(
                 db::get_game(db.clone(), token.user.clone(), game_id.clone()).await?;
 
             if current_game.undo_deal().is_none() {
-                return Err(AlertTemplate::bad_request("Geen rondes om ongedaan te maken"));
+                return Err(AlertTemplate::bad_request(
+                    "Geen rondes om ongedaan te maken",
+                ));
             }
 
             db::save_game(
@@ -703,14 +705,9 @@ pub async fn link_player(
         jar,
         token,
         {
-            db::add_player(
-                db.clone(),
-                game_id.clone(),
-                form.user_id,
-                form.player_name,
-            )
-            .await
-            .map_err(|_| AlertTemplate::internal_server_error())?;
+            db::add_player(db.clone(), game_id.clone(), form.user_id, form.player_name)
+                .await
+                .map_err(|_| AlertTemplate::internal_server_error())?;
 
             let game = db::get_game_by_id(db.clone(), token.user.clone(), game_id.clone())
                 .await
@@ -769,7 +766,7 @@ pub async fn chart(
                 }
             }
 
-            Ok(HtmlTemplate(Chart { scores }))
+            Ok(HtmlTemplate(Chart { game_id, scores }))
         },
         { Err(AlertTemplate::unauthorized()) }
     )
