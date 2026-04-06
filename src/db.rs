@@ -3,152 +3,81 @@ use crate::template::{IdGame, LinkedPlayer};
 use crate::whist::{Game, Players};
 use crate::{auth, Db};
 
-use surrealdb::engine::any::{self, Any};
-use surrealdb::opt::auth::Root;
-use surrealdb::opt::Config;
-use surrealdb::Surreal;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use password_hash::{rand_core::OsRng, SaltString};
+use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::{Row, SqlitePool};
 
-pub const DB: &str = "whistbook";
-pub const NS: &str = "whistbook";
-
-macro_rules! query {
-    (
-        $query_str:expr,
-        $db:expr
-        $(, $param_name:ident = $param_value:expr )* $(,)?
-    ) => {
-            $db.query($query_str)
-                $(.bind((stringify!($param_name), $param_value)))*
-                .await.map_err(Error::SurrealError)?
-    };
-
-    (
-        $query_str:expr,
-        $db:expr
-        $(, $param:ident )* $(,)?
-    ) => {
-            $db.query($query_str)
-                $(.bind((stringify!($param), $param)))*
-                .await.map_err(Error::SurrealError)?
-    };
-}
-
-macro_rules! take {
-    (
-        $res:ident
-    ) => {
-        $res.take(0).map_err(Error::SurrealError)?
-    };
-    (
-        $res:ident, $no:expr
-    ) => {
-        $res.take($no).map_err(Error::SurrealError)?
-    };
-}
-
-macro_rules! select {
-    (
-        $query_str:expr,
-        $db:expr
-        $(, $param_name:ident = $param_value:expr )* $(,)?
-    ) => {
-        {
-            let mut res = $db.query($query_str)
-                $(.bind((stringify!($param_name), $param_value)))*
-                .await.map_err(Error::SurrealError)?;
-
-            res.take(0).map_err(Error::SurrealError)?
-        }
-    };
-
-    (
-        $query_str:expr,
-        $db:expr
-        $(, $param:ident )* $(,)?
-    ) => {
-        {
-            let mut res = $db.query($query_str)
-                $(.bind((stringify!($param), $param)))*
-                .await.map_err(Error::SurrealError)?;
-
-            res.take(0).map_err(Error::SurrealError)?
-        }
-    };
-}
-
-pub async fn get_db() -> Result<Surreal<Any>, Error> {
-    let root = Root {
-        username: "root",
-        password: "root",
-    };
-
-    let config = Config::new().user(root);
-    let endpoint = crate::config("DB_ENDPOINT")?.clone();
-
-    let db = any::connect((endpoint, config))
-        .await
-        .map_err(Error::SurrealError)?;
-
-    db.signin(root).await.map_err(Error::SurrealError)?;
-
-    db.use_ns(NS)
-        .use_db(DB)
-        .await
-        .map_err(Error::SurrealError)?;
-
-    Ok(db)
-}
-
-pub async fn init_db(_db: Db) -> Result<(), Error> {
-    Ok(())
+pub async fn create_pool() -> Result<SqlitePool, Error> {
+    let path = crate::config("DB_PATH")?;
+    let opts = SqliteConnectOptions::new()
+        .filename(&path)
+        .create_if_missing(true)
+        .foreign_keys(true);
+    let pool = SqlitePool::connect_with(opts).await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
+    Ok(pool)
 }
 
 pub async fn check_login(db: Db, email: &str, pw: &str) -> Result<bool, Error> {
-    let mut res = query!(
-        r#"
-        LET $hash = SELECT VALUE pw FROM ONLY login WHERE email = $email LIMIT 1;
-        RETURN crypto::argon2::compare($hash, $pw)
-        "#,
-        db,
-        email = email.to_string(),
-        pw = pw.to_string()
-    );
+    let row = sqlx::query("SELECT pw FROM login WHERE email = ?")
+        .bind(email)
+        .fetch_optional(&**db)
+        .await?;
 
-    let res: Option<bool> = res
-        .take(1)
-        .map_err(|_| Error::LoginErr(LoginErr::WrongCreds))?;
-
-    Ok(res.unwrap())
+    match row {
+        None => Ok(false),
+        Some(r) => {
+            let pw_hash: String = r.try_get("pw")?;
+            let parsed = PasswordHash::new(&pw_hash)
+                .map_err(|_| Error::LoginErr(LoginErr::WrongCreds))?;
+            Ok(Argon2::default()
+                .verify_password(pw.as_bytes(), &parsed)
+                .is_ok())
+        }
+    }
 }
 
 pub async fn set_login(db: Db, email: &str, pw: &str) -> Result<(), Error> {
     auth::check_pw(pw).map_err(Error::LoginErr)?;
 
-    let query = r#"
-        CREATE login
-        SET
-            email = $email,
-            pw = crypto::argon2::generate(<string>$pw)
-    "#;
+    let salt = SaltString::generate(&mut OsRng);
+    let hash = Argon2::default()
+        .hash_password(pw.as_bytes(), &salt)
+        .map_err(|_| Error::LoginErr(LoginErr::WrongCreds))?
+        .to_string();
 
-    let res = db
-        .query(query)
-        .bind(("email", email.to_string()))
-        .bind(("pw", pw.to_string()))
+    sqlx::query("INSERT INTO login (email, pw) VALUES (?, ?)")
+        .bind(email)
+        .bind(&hash)
+        .execute(&**db)
         .await
-        .map_err(Error::SurrealError)?;
-
-    if let Err(e) = res.check() {
-        if let surrealdb::Error::Db(error) = &e {
-            if let surrealdb::error::Db::IndexExists { .. } = error {
-                return Err(Error::LoginAlreadyExists(email.to_string()));
+        .map_err(|e| {
+            if let sqlx::Error::Database(ref de) = e {
+                if de.is_unique_violation() {
+                    return Error::LoginAlreadyExists(email.to_string());
+                }
             }
-        } else {
-            return Err(Error::SurrealError(e));
-        };
-    }
+            Error::SqlxError(e)
+        })?;
 
     Ok(())
+}
+
+pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM login WHERE email = ?")
+        .bind(&email)
+        .fetch_one(&**db)
+        .await?;
+    Ok(count > 0)
+}
+
+pub async fn get_user_id(db: Db, email: String) -> Result<String, Error> {
+    let id: i64 = sqlx::query_scalar("SELECT id FROM login WHERE email = ?")
+        .bind(&email)
+        .fetch_one(&**db)
+        .await?;
+    Ok(id.to_string())
 }
 
 pub async fn start_game<P: Into<Players>>(
@@ -157,32 +86,113 @@ pub async fn start_game<P: Into<Players>>(
     players: P,
 ) -> Result<(String, Game), Error> {
     let game = Game::new(name, players);
+    let json = serde_json::to_string(&game).unwrap();
 
-    let res = query!(
-        r#"SELECT VALUE id.id() FROM (CREATE game SET game = $game);"#,
-        db,
-        game = game.clone()
-    );
+    let result = sqlx::query("INSERT INTO game (game) VALUES (?)")
+        .bind(&json)
+        .execute(&**db)
+        .await?;
 
-    match res.check() {
-        Err(e) => {
-            if let surrealdb::Error::Db(error) = &e {
-                if let surrealdb::error::Db::IndexExists { .. } = error {
-                    Err(Error::GameNameExists(game.name))
-                } else {
-                    Err(Error::SurrealError(e))
-                }
-            } else if let surrealdb::Error::Api(surrealdb::error::Api::Query { .. }) = &e {
-                Err(Error::PlayerNameProblem)
-            } else {
-                Err(Error::SurrealError(e))
-            }
-        }
-        Ok(mut res) => {
-            let id: Option<String> = take!(res);
-            Ok((id.unwrap(), game))
-        }
-    }
+    Ok((result.last_insert_rowid().to_string(), game))
+}
+
+pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
+    let game_id: i64 = id.parse().map_err(|_| Error::NoGameError)?;
+    let json = serde_json::to_string(&game).unwrap();
+
+    sqlx::query(
+        "UPDATE game SET game = ?
+         WHERE id = ?
+           AND EXISTS (
+               SELECT 1 FROM plays p
+               JOIN login l ON l.id = p.login_id
+               WHERE p.game_id = game.id AND l.email = ?
+           )",
+    )
+    .bind(&json)
+    .bind(game_id)
+    .bind(&owner)
+    .execute(&**db)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
+    let game_id: i64 = id.parse().map_err(|_| Error::NoGameError)?;
+
+    let row = sqlx::query(
+        "SELECT g.game FROM game g
+         JOIN plays p ON p.game_id = g.id
+         JOIN login l ON l.id = p.login_id
+         WHERE g.id = ? AND l.email = ?",
+    )
+    .bind(game_id)
+    .bind(&owner)
+    .fetch_optional(&**db)
+    .await?
+    .ok_or(Error::NoGameError)?;
+
+    let json: String = row.try_get("game")?;
+    serde_json::from_str(&json).map_err(|_| Error::NoGameError)
+}
+
+pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, Error> {
+    get_game(db, owner, id).await
+}
+
+pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Error> {
+    let rows = sqlx::query(
+        "SELECT g.id, g.game FROM game g
+         JOIN plays p ON p.game_id = g.id
+         JOIN login l ON l.id = p.login_id
+         WHERE l.email = ?",
+    )
+    .bind(&owner)
+    .fetch_all(&**db)
+    .await?;
+
+    rows.into_iter()
+        .map(|r| {
+            let id: i64 = r.try_get("id")?;
+            let json: String = r.try_get("game")?;
+            let game: Game = serde_json::from_str(&json).map_err(|_| {
+                sqlx::Error::Decode("failed to deserialize game JSON".into())
+            })?;
+            Ok(IdGame {
+                id: id.to_string(),
+                game,
+            })
+        })
+        .collect()
+}
+
+pub async fn num_players(db: Db, game_id: String) -> Result<usize, Error> {
+    let gid: i64 = game_id.parse().map_err(|_| Error::NoGameError)?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM plays WHERE game_id = ?")
+        .bind(gid)
+        .fetch_one(&**db)
+        .await?;
+    Ok(count as usize)
+}
+
+pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), Error> {
+    let game_id: i64 = id.parse().map_err(|_| Error::NoGameError)?;
+
+    sqlx::query(
+        "DELETE FROM game WHERE id = ?
+         AND EXISTS (
+             SELECT 1 FROM plays p
+             JOIN login l ON l.id = p.login_id
+             WHERE p.game_id = game.id AND l.email = ?
+         )",
+    )
+    .bind(game_id)
+    .bind(&owner)
+    .execute(&**db)
+    .await?;
+
+    Ok(())
 }
 
 pub async fn add_player(
@@ -191,158 +201,50 @@ pub async fn add_player(
     user_id: String,
     user_alias: String,
 ) -> Result<(), Error> {
-    query!(
-        r#"
-        LET $login = type::thing("login", $user_id);
-        LET $game = type::thing("game", $game_id);
-        RELATE $login->plays->$game
-                SET alias = $user_alias;"#,
-        db,
-        user_id,
-        game_id,
-        user_alias,
-    );
+    let gid: i64 = game_id.parse().map_err(|_| Error::NoGameError)?;
+    let uid: i64 = user_id.parse().map_err(|_| Error::NoGameError)?;
+
+    sqlx::query("INSERT OR IGNORE INTO plays (login_id, game_id, alias) VALUES (?, ?, ?)")
+        .bind(uid)
+        .bind(gid)
+        .bind(&user_alias)
+        .execute(&**db)
+        .await?;
+
     Ok(())
 }
 
 pub async fn remove_player(db: Db, game_id: String, user_id: String) -> Result<(), Error> {
-    query!(
-        r#"
-        LET $login = type::thing("login", $user_id);
-        LET $game = type::thing("game", $game_id);
-        DELETE $login->plays WHERE out == $game;
-        "#,
-        db,
-        user_id,
-        game_id,
-    );
-    Ok(())
-}
+    let gid: i64 = game_id.parse().map_err(|_| Error::NoGameError)?;
+    let uid: i64 = user_id.parse().map_err(|_| Error::NoGameError)?;
 
-pub async fn save_game(db: Db, owner: String, id: String, game: Game) -> Result<(), Error> {
-    query!(
-        r#"
-         UPDATE type::thing("game", $id)
-         SET game = $game
-         WHERE $owner IN <-plays<-login.email;
-         "#,
-        db,
-        owner,
-        id,
-        game,
-    );
-    Ok(())
-}
-
-/// Returns the amount of players in a game, defined by the plays relation
-pub async fn num_players(db: Db, game_id: String) -> Result<usize, Error> {
-    let count: Option<usize> = select!(
-        r#"RETURN COUNT(SELECT * FROM plays WHERE ->game.id.first().id() == $gameid)"#,
-        db,
-        game_id
-    );
-
-    count.ok_or(Error::NoGameError)
-}
-
-pub async fn get_game(db: Db, owner: String, id: String) -> Result<Game, Error> {
-    let game: Option<Game> = select!(
-        r#"
-        SELECT VALUE game
-        FROM ONLY type::thing("game", $id) 
-        WHERE $owner IN <-plays<-login.email;
-        "#,
-        db,
-        id,
-        owner
-    );
-
-    game.ok_or(Error::NoGameError)
-}
-
-pub async fn get_games_with_ids(db: Db, owner: String) -> Result<Vec<IdGame>, Error> {
-    let games: Vec<IdGame> = select!(
-        r#"
-        SELECT id.id() as id, game
-        FROM game
-        WHERE $owner IN <-plays<-login.email;
-        "#,
-        db,
-        owner
-    );
-
-    Ok(games)
-}
-
-pub async fn get_game_by_id(db: Db, owner: String, id: String) -> Result<Game, Error> {
-    let game: Option<Game> = select!(
-        r#"
-            SELECT VALUE game
-            FROM ONLY type::thing("game", $id)
-            WHERE $owner IN <-plays<-login.email
-            LIMIT 1;
-            "#,
-        db,
-        id,
-        owner
-    );
-
-    Ok(game.unwrap())
-}
-
-pub async fn delete_game_by_id(db: Db, owner: String, id: String) -> Result<(), Error> {
-    query!(
-        r#"
-            DELETE type::thing("game", $id)
-            WHERE $owner IN <-plays<-login.email;
-            "#,
-        db,
-        id,
-        owner
-    );
+    sqlx::query("DELETE FROM plays WHERE game_id = ? AND login_id = ?")
+        .bind(gid)
+        .bind(uid)
+        .execute(&**db)
+        .await?;
 
     Ok(())
 }
 
-pub async fn get_game_players(
-    db: Db,
-    game_id: String,
-) -> Result<Vec<LinkedPlayer>, Error> {
-    let players: Vec<LinkedPlayer> = select!(
-        r#"
-        SELECT alias, in.email as email
-        FROM plays
-        WHERE out == type::thing("game", $game_id);
-        "#,
-        db,
-        game_id
-    );
+pub async fn get_game_players(db: Db, game_id: String) -> Result<Vec<LinkedPlayer>, Error> {
+    let gid: i64 = game_id.parse().map_err(|_| Error::NoGameError)?;
 
-    Ok(players)
-}
+    let rows = sqlx::query(
+        "SELECT p.alias, l.email FROM plays p
+         JOIN login l ON l.id = p.login_id
+         WHERE p.game_id = ?",
+    )
+    .bind(gid)
+    .fetch_all(&**db)
+    .await?;
 
-pub async fn email_exists(db: Db, email: String) -> Result<bool, Error> {
-    let res: Option<bool> = select!(
-        r#"
-        RETURN count(SELECT * FROM login WHERE email = $email) > 0;
-    "#,
-        db,
-        email
-    );
-
-    Ok(res.unwrap())
-}
-
-pub async fn get_user_id(db: Db, email: String) -> Result<String, Error> {
-    let id: Option<String> = select!(
-        r#"
-        SELECT VALUE <string>id.id()
-        FROM ONLY login
-        WHERE email = $email
-        LIMIT 1;"#,
-        db,
-        email
-    );
-
-    Ok(id.unwrap())
+    rows.into_iter()
+        .map(|r| {
+            Ok(LinkedPlayer {
+                alias: r.try_get("alias")?,
+                email: r.try_get("email")?,
+            })
+        })
+        .collect()
 }

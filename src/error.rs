@@ -12,8 +12,10 @@ pub enum Error {
     GameNameExists(String),
     #[error("geef 4 verschillende namen")]
     PlayerNameProblem,
-    #[error("SurrealError: {0}")]
-    SurrealError(#[from] surrealdb::Error),
+    #[error("Database error: {0}")]
+    SqlxError(#[from] sqlx::Error),
+    #[error("Migration error: {0}")]
+    SqlxMigrateError(#[from] sqlx::migrate::MigrateError),
     #[error("Env Var decoding failed: {0}")]
     EnvVarDecodeError(base64::DecodeError),
     #[error("Please set the {0} env variable in .env or .env.dev")]

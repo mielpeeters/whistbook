@@ -15,7 +15,9 @@ COPY ./Cargo.toml ./Cargo.lock ./
 COPY src/ ./src/
 COPY templates/ ./templates/
 COPY public/ ./public/
+COPY migrations/ ./migrations/
 
+ENV SQLX_OFFLINE=true
 RUN cargo build --release
 RUN mv ./target/release/whistbook ./app
 

@@ -20,5 +20,7 @@ watch:
 watch-release:
   cargo watch -w templates -w src -w styles -- just watch-command-release
 
-db: 
-  docker compose up -d surrealdb
+db-setup:
+  cargo sqlx database create
+  cargo sqlx migrate run
+  cargo sqlx prepare

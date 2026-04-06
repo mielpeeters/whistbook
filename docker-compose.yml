@@ -4,11 +4,11 @@ services:
     container_name: surrealdb
     restart: unless-stopped
     user: 'root'
-    command: start --user root --pass root rocksdb:/data/database.db
+    command: start --log debug rocksdb:/data/database.db
     ports:
       - 31313:8000
     volumes:
-      - ./data:/data
+      - ./surrealdb/data:/data
 
   whistbook:
     container_name: whistbook
@@ -18,5 +18,5 @@ services:
     ports:
       - 41414:43434
     restart: unless-stopped
-    depends_on:
-      - surrealdb
+    volumes:
+      - ./data:/app/data

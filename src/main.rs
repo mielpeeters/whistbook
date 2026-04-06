@@ -10,20 +10,19 @@ pub mod whist;
 
 pub use config::{config, config_bytes};
 
+use sqlx::SqlitePool;
 use std::ops::Deref;
 use std::sync::Arc;
-use surrealdb::engine::any::Any;
-use surrealdb::Surreal;
 use tokio::net::TcpListener;
 
-pub struct Db(Arc<Surreal<Any>>);
+pub struct Db(Arc<SqlitePool>);
 
 impl axum::extract::FromRef<Db> for () {
     fn from_ref(_: &Db) -> Self {}
 }
 
 impl Deref for Db {
-    type Target = Arc<Surreal<Any>>;
+    type Target = Arc<SqlitePool>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -40,8 +39,7 @@ impl Clone for Db {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let db: Db = Db(Arc::new(db::get_db().await?));
-    db::init_db(db.clone()).await?;
+    let db: Db = Db(Arc::new(db::create_pool().await?));
 
     let app = routes::router(db.clone()).await;
 

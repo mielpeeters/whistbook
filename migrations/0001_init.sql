@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS login (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT    NOT NULL UNIQUE,
+    pw    TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS game (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    game TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plays (
+    login_id INTEGER NOT NULL REFERENCES login(id) ON DELETE CASCADE,
+    game_id  INTEGER NOT NULL REFERENCES game(id)  ON DELETE CASCADE,
+    alias    TEXT    NOT NULL,
+    PRIMARY KEY (login_id, game_id)
+);
+
+CREATE INDEX IF NOT EXISTS plays_game_idx ON plays(game_id);
