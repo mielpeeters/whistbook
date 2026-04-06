@@ -2,14 +2,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use askama::Template;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Request, State};
 use axum::http::{HeaderMap, StatusCode, Uri};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, Router};
 use axum::Form;
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use axum_garde::WithValidation;
 use garde::Validate;
+use http::header::{COOKIE, SET_COOKIE};
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::KeyExtractor;
@@ -56,6 +59,66 @@ macro_rules! int_err {
     ($res:expr) => {
         $res.map_err(|e| e.into_alert())
     };
+}
+
+/// Reads the value of a named cookie from a raw `Cookie` header string.
+fn get_cookie_value<'a>(cookie_header: &'a str, name: &str) -> Option<&'a str> {
+    cookie_header.split(';').find_map(|part| {
+        let part = part.trim();
+        part.strip_prefix(name)
+            .and_then(|rest| rest.strip_prefix('='))
+    })
+}
+
+/// Middleware that silently refreshes the access token when it is missing or expired
+/// but a valid refresh token cookie is present. The new access token is injected into
+/// the request (so the handler's CookieJar sees it) and set in the response.
+async fn refresh_middleware(mut req: Request, next: Next) -> Response {
+    let cookie_header = req
+        .headers()
+        .get(COOKIE)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("")
+        .to_owned();
+
+    let has_valid_access = get_cookie_value(&cookie_header, "token")
+        .map(|t| auth::verify_token(t).is_ok())
+        .unwrap_or(false);
+
+    let mut new_access_token: Option<String> = None;
+
+    if !has_valid_access {
+        if let Some(rt) = get_cookie_value(&cookie_header, "refresh_token") {
+            if let Ok(t) = auth::verify_refresh_token(rt) {
+                if let Ok(token) = auth::create_token(t.user) {
+                    new_access_token = Some(token);
+                }
+            }
+        }
+    }
+
+    if let Some(ref new_token) = new_access_token {
+        // Inject into request Cookie header so the handler's CookieJar sees it.
+        let new_cookie_header = if cookie_header.is_empty() {
+            format!("token={new_token}")
+        } else {
+            format!("{cookie_header}; token={new_token}")
+        };
+        if let Ok(val) = HeaderValue::from_str(&new_cookie_header) {
+            req.headers_mut().insert(COOKIE, val);
+        }
+    }
+
+    let mut response = next.run(req).await;
+
+    if let Some(token) = new_access_token {
+        let cookie_str = format!("token={token}; Path=/; HttpOnly; SameSite=Strict");
+        if let Ok(val) = HeaderValue::from_str(&cookie_str) {
+            response.headers_mut().append(SET_COOKIE, val);
+        }
+    }
+
+    response
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -120,6 +183,7 @@ pub async fn router(app_state: Db) -> Router {
         .route("/api/check-email", post(check_email))
         .route("/public/*file", get(static_handler))
         .route("/api/chart/:game_id", get(chart))
+        .route_layer(middleware::from_fn(refresh_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .with_state(app_state);
@@ -168,6 +232,12 @@ async fn logout(jar: CookieJar) -> impl IntoResponse {
         [("HX-Redirect", "/")],
         jar.remove(
             Cookie::build("token")
+                .path("/")
+                .same_site(SameSite::Strict)
+                .http_only(true),
+        )
+        .remove(
+            Cookie::build("refresh_token")
                 .path("/")
                 .same_site(SameSite::Strict)
                 .http_only(true),
@@ -221,18 +291,30 @@ async fn check_credentials(
     let check = db::check_login(db.clone(), &login.email, &login.password).await?;
 
     if check {
-        let token = auth::create_token(login.email).map_err(|_| AlertTemplate {
+        let token = auth::create_token(login.email.clone()).map_err(|_| AlertTemplate {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             alert: "int serv err".into(),
         })?;
 
-        let cookie = Cookie::build(("token", token))
+        let refresh_token =
+            auth::create_refresh_token(login.email.clone()).map_err(|_| AlertTemplate {
+                code: StatusCode::INTERNAL_SERVER_ERROR,
+                alert: "int serv err".into(),
+            })?;
+
+        let access_cookie = Cookie::build(("token", token))
             .path("/")
             .same_site(SameSite::Strict)
             .http_only(true);
 
+        let refresh_cookie = Cookie::build(("refresh_token", refresh_token))
+            .path("/")
+            .same_site(SameSite::Strict)
+            .http_only(true)
+            .max_age(cookie::time::Duration::days(60));
+
         let main = main_page().await;
-        return Ok((jar.add(cookie), main));
+        return Ok((jar.add(access_cookie).add(refresh_cookie), main));
     }
 
     Err(AlertTemplate {

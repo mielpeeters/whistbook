@@ -5321,6 +5321,7 @@ dependencies = [
  "axum-extra",
  "axum_garde",
  "base64 0.22.1",
+ "cookie",
  "env_logger",
  "futures-util",
  "garde",

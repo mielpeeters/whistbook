@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, LoginErr, TokenError};
 
-const EXPECTED: &str = "This is a signed token for the whistbook website";
+const ACCESS_MSG: &str = "This is a signed token for the whistbook website";
+const REFRESH_MSG: &str = "This is a refresh token for the whistbook website";
 const TOKEN_HOURS: u64 = 24;
+const REFRESH_TOKEN_DAYS: u64 = 60;
 
 #[derive(Serialize, Deserialize)]
 pub struct Token {
@@ -20,79 +22,92 @@ pub struct Token {
 }
 
 impl Token {
-    fn new(message: String, user: String) -> Self {
-        let now = std::time::SystemTime::now();
-        let expiry = now
-            .checked_add(std::time::Duration::from_secs(TOKEN_HOURS) * 3600)
+    fn new(message: String, user: String, duration: std::time::Duration) -> Self {
+        let expiry = std::time::SystemTime::now()
+            .checked_add(duration)
             .unwrap();
         let expires_at = expiry.duration_since(UNIX_EPOCH).unwrap().as_nanos();
-
-        Token {
-            message,
-            user,
-            expires_at,
-        }
+        Token { message, user, expires_at }
     }
 
-    fn is_valid(&self) -> bool {
-        if self.message != EXPECTED {
-            return false;
-        }
-
-        let now = std::time::SystemTime::now();
-        let current_unix = now.duration_since(UNIX_EPOCH).unwrap().as_nanos();
-
-        self.expires_at > current_unix
+    fn is_expired(&self) -> bool {
+        let current = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        self.expires_at <= current
     }
 }
 
-pub fn create_token(user: String) -> Result<String, Error> {
+fn encrypt_token(token: &Token) -> Result<String, Error> {
     let key: Vec<u8> = crate::config_bytes("TOKEN_KEY")?;
     let key = STANDARD.decode(key).map_err(Error::EnvVarDecodeError)?;
-
-    // key needs to be 32 bytes long
-
     let key = Key::<Aes256Gcm>::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 
-    let token = Token::new(EXPECTED.into(), user);
-    let token_json = serde_json::to_vec(&token).unwrap();
-
-    let mut signed_token = cipher
+    let token_json = serde_json::to_vec(token).unwrap();
+    let mut ciphertext = cipher
         .encrypt(&nonce, token_json.as_ref())
         .map_err(|_| Error::EncryptError)?;
+    ciphertext.extend(nonce.iter());
 
-    signed_token.extend(nonce.iter());
-
-    let stringified = STANDARD.encode(signed_token);
-    Ok(stringified)
+    Ok(STANDARD.encode(ciphertext))
 }
 
-pub fn verify_token(token: &str) -> Result<Token, Error> {
+fn decrypt_token(token: &str) -> Result<Token, Error> {
     let token = STANDARD.decode(token).map_err(|_| Error::DecryptError)?;
-
-    let (signed_token, nonce) = token.split_at(token.len() - 12);
+    let (ciphertext, nonce) = token.split_at(token.len() - 12);
 
     let key: Vec<u8> = crate::config_bytes("TOKEN_KEY")?;
     let key = STANDARD.decode(key).map_err(Error::EnvVarDecodeError)?;
-
-    // key needs to be 32 bytes long
-
     let key = Key::<Aes256Gcm>::from_slice(&key);
     let cipher = Aes256Gcm::new(key);
 
-    let token = cipher
-        .decrypt(nonce.into(), signed_token)
+    let plaintext = cipher
+        .decrypt(nonce.into(), ciphertext)
         .map_err(|_| Error::DecryptError)?;
 
-    let token: Token =
-        serde_json::from_slice(&token).map_err(|_| Error::TokenError(TokenError::NotSigned))?;
+    serde_json::from_slice(&plaintext).map_err(|_| Error::TokenError(TokenError::NotSigned))
+}
 
-    if !token.is_valid() {
+pub fn create_token(user: String) -> Result<String, Error> {
+    let token = Token::new(
+        ACCESS_MSG.into(),
+        user,
+        std::time::Duration::from_secs(TOKEN_HOURS * 3600),
+    );
+    encrypt_token(&token)
+}
+
+pub fn verify_token(token: &str) -> Result<Token, Error> {
+    let token = decrypt_token(token)?;
+    if token.message != ACCESS_MSG {
+        return Err(Error::TokenError(TokenError::NotSigned));
+    }
+    if token.is_expired() {
         return Err(Error::TokenError(TokenError::Expired));
     }
+    Ok(token)
+}
 
+pub fn create_refresh_token(user: String) -> Result<String, Error> {
+    let token = Token::new(
+        REFRESH_MSG.into(),
+        user,
+        std::time::Duration::from_secs(REFRESH_TOKEN_DAYS * 24 * 3600),
+    );
+    encrypt_token(&token)
+}
+
+pub fn verify_refresh_token(token: &str) -> Result<Token, Error> {
+    let token = decrypt_token(token)?;
+    if token.message != REFRESH_MSG {
+        return Err(Error::TokenError(TokenError::NotSigned));
+    }
+    if token.is_expired() {
+        return Err(Error::TokenError(TokenError::Expired));
+    }
     Ok(token)
 }
 
