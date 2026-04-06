@@ -1,25 +1,41 @@
 <div class="center-content relative">
   <div
-    class="flex gap-8 min-h-64 max-w-52 md:max-w-96 flex-wrap justify-center"
+    class="flex flex-col gap-8 min-h-64 max-w-52 md:max-w-96 items-center"
   >
-    <button
-      hx-get="/games"
-      hx-target="#content"
-      hx-swap="innerHTML"
-      hx-push-url="/games"
-      class="w-40 h-9 rounded-sm hover:bg-blue-50 transition-colors border-blue-800 border-2 hover:text-blue-700 font-medium text-lg px-1 hover:font-bold"
-    >
-      Speel verder
-    </button>
-    <button
-      hx-get="/new-game"
-      hx-target="#content"
-      hx-swap="innerHTML"
-      hx-push-url="/new-game"
-      class="w-40 h-9 rounded-sm hover:bg-emerald-50 transition-colors border-green-800 border-2 hover:text-green-700 font-medium text-lg px-1 hover:font-bold"
-    >
-      Nieuw spel
-    </button>
+    <div class="flex flex-col items-center gap-0.5">
+      <span class="text-3xl font-bold text-green-800">{{ rating }}</span>
+      <span class="text-xs text-neutral-400 uppercase tracking-wide">rating</span>
+    </div>
+    <div class="flex gap-8 flex-wrap justify-center">
+      <button
+        hx-get="/games"
+        hx-target="#content"
+        hx-swap="innerHTML"
+        hx-push-url="/games"
+        class="w-40 h-9 rounded-sm hover:bg-blue-50 transition-colors border-blue-800 border-2 hover:text-blue-700 font-medium text-lg px-1 hover:font-bold"
+      >
+        Speel verder
+      </button>
+      <button
+        hx-get="/new-game"
+        hx-target="#content"
+        hx-swap="innerHTML"
+        hx-push-url="/new-game"
+        class="w-40 h-9 rounded-sm hover:bg-emerald-50 transition-colors border-green-800 border-2 hover:text-green-700 font-medium text-lg px-1 hover:font-bold"
+      >
+        Nieuw spel
+      </button>
+    </div>
+    {% if !leaderboard.is_empty() %}
+    <div class="flex flex-col w-full mt-2 gap-1">
+      {% for entry in leaderboard %}
+      <div class="flex justify-between text-sm py-1 border-b border-neutral-100 last:border-0">
+        <span class="text-neutral-600">{{ entry.email }}</span>
+        <span class="font-medium text-green-800">{{ entry.rating }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   <div
     class="absolute bottom-24 ml-auto mr-auto !text-neutral-600 flex justify-center gap-x-4"

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::error::{Error, LoginErr};
 use crate::template::{IdGame, LinkedPlayer};
 use crate::whist::{Game, Players};
@@ -225,6 +227,68 @@ pub async fn remove_player(db: Db, game_id: String, user_id: String) -> Result<(
         .await?;
 
     Ok(())
+}
+
+/// Returns all games ordered by game ID, each paired with their linked plays (login_id, alias, email).
+pub async fn get_all_games_for_rating(
+    db: Db,
+) -> Result<Vec<(Game, Vec<(i64, String, String)>)>, Error> {
+    let rows = sqlx::query(
+        "SELECT g.id, g.game, p.login_id, p.alias, l.email
+         FROM game g
+         LEFT JOIN plays p ON p.game_id = g.id
+         LEFT JOIN login l ON l.id = p.login_id
+         ORDER BY g.id",
+    )
+    .fetch_all(&**db)
+    .await?;
+
+    let mut result: Vec<(i64, Game, Vec<(i64, String, String)>)> = Vec::new();
+
+    for row in rows {
+        let game_id: i64 = row.try_get("id")?;
+        if result.last().map(|(id, _, _)| *id) != Some(game_id) {
+            let json: String = row.try_get("game")?;
+            let game: Game = serde_json::from_str(&json).map_err(|_| Error::NoGameError)?;
+            result.push((game_id, game, vec![]));
+        }
+        if let Ok(login_id) = row.try_get::<i64, _>("login_id") {
+            let alias: String = row.try_get("alias").unwrap_or_default();
+            let email: String = row.try_get("email").unwrap_or_default();
+            result.last_mut().unwrap().2.push((login_id, alias, email));
+        }
+    }
+
+    Ok(result.into_iter().map(|(_, game, plays)| (game, plays)).collect())
+}
+
+/// Atomically replaces all rows in the rating table.
+pub async fn upsert_ratings(db: Db, ratings: &HashMap<i64, i32>) -> Result<(), Error> {
+    let mut tx = (**db).begin().await?;
+    sqlx::query("DELETE FROM rating").execute(&mut *tx).await?;
+    for (&login_id, &elo) in ratings {
+        sqlx::query("INSERT INTO rating (login_id, elo) VALUES (?, ?)")
+            .bind(login_id)
+            .bind(elo)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Returns (email, elo) for all rated players, sorted descending by elo.
+pub async fn get_ratings(db: Db) -> Result<Vec<(String, i32)>, Error> {
+    let rows = sqlx::query(
+        "SELECT l.email, r.elo FROM rating r
+         JOIN login l ON l.id = r.login_id
+         ORDER BY r.elo DESC",
+    )
+    .fetch_all(&**db)
+    .await?;
+    rows.into_iter()
+        .map(|r| Ok((r.try_get("email")?, r.try_get("elo")?)))
+        .collect()
 }
 
 pub async fn get_game_players(db: Db, game_id: String) -> Result<Vec<LinkedPlayer>, Error> {

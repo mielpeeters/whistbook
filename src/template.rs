@@ -14,9 +14,17 @@ pub struct IndexTemplate {}
 #[template(path = "login.html")]
 pub struct LoginTemplate {}
 
+pub struct LeaderboardEntry {
+    pub email: String,
+    pub rating: i32,
+}
+
 #[derive(Template)]
 #[template(path = "main.html")]
-pub struct MainTemplate {}
+pub struct MainTemplate {
+    pub rating: i32,
+    pub leaderboard: Vec<LeaderboardEntry>,
+}
 
 #[derive(Template)]
 #[template(path = "deal_form.html")]

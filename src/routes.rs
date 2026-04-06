@@ -220,10 +220,9 @@ struct Login {
     password: String,
 }
 
-async fn login(jar: CookieJar) -> impl IntoResponse {
-    auth!(jar, token, { main_page().await }, {
-        let login = LoginTemplate {};
-        login.render().unwrap().into_response()
+async fn login(State(db): State<Db>, jar: CookieJar) -> impl IntoResponse {
+    auth!(jar, token, { main_page(db, &token.user).await }, {
+        LoginTemplate {}.render().unwrap().into_response()
     })
 }
 
@@ -272,8 +271,19 @@ async fn register(
     check_credentials(state, jar, login).await
 }
 
-async fn main_page() -> axum::http::Response<axum::body::Body> {
-    HtmlTemplate(MainTemplate {}).into_response()
+async fn main_page(db: Db, email: &str) -> axum::http::Response<axum::body::Body> {
+    let leaderboard = db::get_ratings(db.clone())
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(e, r)| LeaderboardEntry { email: e, rating: r })
+        .collect::<Vec<_>>();
+    let rating = leaderboard
+        .iter()
+        .find(|e| e.email == email)
+        .map(|e| e.rating)
+        .unwrap_or(crate::rating::DEFAULT_RATING);
+    HtmlTemplate(MainTemplate { rating, leaderboard }).into_response()
 }
 
 async fn check_credentials(
@@ -313,7 +323,7 @@ async fn check_credentials(
             .http_only(true)
             .max_age(cookie::time::Duration::days(60));
 
-        let main = main_page().await;
+        let main = main_page(db.clone(), &login.email).await;
         return Ok((jar.add(access_cookie).add(refresh_cookie), main));
     }
 
@@ -429,6 +439,9 @@ async fn deal(
             .await
             .map_err(|_| AlertTemplate::internal_server_error())?;
 
+            let db2 = db.clone();
+            tokio::spawn(async move { let _ = crate::rating::recompute_all(db2).await; });
+
             Ok(HtmlTemplate(PointsTemplate {
                 id: game_id,
                 points,
@@ -471,6 +484,9 @@ async fn undo(
             )
             .await
             .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let db2 = db.clone();
+            tokio::spawn(async move { let _ = crate::rating::recompute_all(db2).await; });
 
             Ok(HtmlTemplate(GameTemplate {
                 id: game_id,
@@ -790,6 +806,9 @@ pub async fn link_player(
             db::add_player(db.clone(), game_id.clone(), form.user_id, form.player_name)
                 .await
                 .map_err(|_| AlertTemplate::internal_server_error())?;
+
+            let db2 = db.clone();
+            tokio::spawn(async move { let _ = crate::rating::recompute_all(db2).await; });
 
             let game = db::get_game_by_id(db.clone(), token.user.clone(), game_id.clone())
                 .await
