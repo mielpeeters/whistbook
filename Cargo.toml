@@ -7,7 +7,7 @@ default-run = "whistbook"
 [dependencies]
 askama = "0.12.1"
 axum = { version = "0.7.7", features = ["macros"] }
-axum-extra = { version ="0.9.4", features=["cookie", "typed-header"] }
+axum-extra = { version = "0.9.4", features = ["cookie", "typed-header"] }
 base64 = "0.22.1"
 env_logger = "0.11.5"
 futures-util = "0.3.31"
@@ -17,17 +17,21 @@ rand = "0.8.5"
 rust-embed = { version = "8.5.0", features = ["axum-ex"] }
 serde = { version = "1.0.213", features = ["derive"] }
 serde_json = "1.0.132"
-surrealdb = "2.0.4"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "macros"] }
 argon2 = "0.5"
 password-hash = { version = "0.5", features = ["rand_core"] }
-tokio = {version="1.41", features=["full"]}
+tokio = { version = "1.41", features = ["full"] }
 tokio-stream = "0.1.16"
 tower-livereload = "0.9.4"
-reqwest = { version = "0.12.8", features=["json"] }
+reqwest = { version = "0.12.8", features = ["json"] }
 tower-http = { version = "0.6.1", features = ["compression-gzip", "trace"] }
 tower_governor = "0.4.3"
-garde = { version = "0.20.0", features = ["derive", "serde", "pattern", "email"]}
+garde = { version = "0.20.0", features = [
+  "derive",
+  "serde",
+  "pattern",
+  "email",
+] }
 axum_garde = "0.20.0"
 aes = "0.8.4"
 aes-gcm = "0.10.3"
@@ -41,10 +45,6 @@ cookie = "0.18.1"
 [[bin]]
 name = "whistbook"
 path = "src/main.rs"
-
-[[bin]]
-name = "migrate"
-path = "src/bin/migrate.rs"
 
 [[bin]]
 name = "recalculate_ratings"
