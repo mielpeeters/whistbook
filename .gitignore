@@ -2,4 +2,4 @@
 BonkRank/
 node_modules
 .env
-data/database.db
+data/*
